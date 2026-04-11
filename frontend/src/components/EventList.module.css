@@ -1,0 +1,300 @@
+/* ── Outer wrapper ───────────────────────────────────────────────────────── */
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.count {
+  font-size: 0.7rem;
+  color: #666;
+}
+
+.uncalibratedBadge {
+  margin-left: auto;
+  font-size: 0.67rem;
+  color: #f39c12;
+  background: rgba(243, 156, 18, 0.09);
+  border: 1px solid rgba(243, 156, 18, 0.25);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  white-space: nowrap;
+}
+
+/* ── Filters ─────────────────────────────────────────────────────────────── */
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.chips {
+  display: flex;
+  gap: 3px;
+}
+
+.chip {
+  background: #0f0f1a;
+  border: 1px solid #1a2a4a;
+  color: #888;
+  border-radius: 20px;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  line-height: 1.4;
+}
+
+.chip:hover,
+.chipActive {
+  border-color: #4ecca3;
+  color: #4ecca3;
+}
+
+.select {
+  background: #0f0f1a;
+  border: 1px solid #1a2a4a;
+  color: #888;
+  border-radius: 5px;
+  padding: 0.18rem 0.35rem;
+  font-size: 0.68rem;
+  cursor: pointer;
+  outline: none;
+  max-width: 130px;
+}
+
+/* ── Search ──────────────────────────────────────────────────────────────── */
+.searchRow {
+  display: flex;
+  align-items: center;
+  background: #0f0f1a;
+  border: 1px solid #1a2a4a;
+  border-radius: 6px;
+  padding: 0 0.5rem;
+  gap: 0.3rem;
+  flex-shrink: 0;
+  transition: border-color 0.15s;
+}
+
+.searchRow:focus-within {
+  border-color: #4ecca3;
+}
+
+.searchIcon {
+  font-size: 0.75rem;
+  color: #555;
+}
+
+.searchInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ddd;
+  font-size: 0.78rem;
+  padding: 0.32rem 0;
+}
+
+.searchInput::placeholder {
+  color: #444;
+}
+
+.clearSearch {
+  background: none;
+  border: none;
+  color: #555;
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.clearSearch:hover {
+  color: #e74c3c;
+}
+
+/* ── Scrollable list ─────────────────────────────────────────────────────── */
+.list {
+  list-style: none;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  /* Thin custom scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: #1a2a4a transparent;
+}
+
+.list::-webkit-scrollbar       { width: 4px; }
+.list::-webkit-scrollbar-track { background: transparent; }
+.list::-webkit-scrollbar-thumb { background: #1a2a4a; border-radius: 2px; }
+
+/* ── Period separator ────────────────────────────────────────────────────── */
+.separator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.3rem 0.3rem;
+  flex-shrink: 0;
+}
+
+.separatorLine {
+  flex: 1;
+  height: 1px;
+  background: #1a2a4a;
+}
+
+.separatorLabel {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #4ecca3;
+  white-space: nowrap;
+}
+
+/* ── Event row ───────────────────────────────────────────────────────────── */
+.item {
+  display: grid;
+  /* dot | clock | details | video-time */
+  grid-template-columns: 8px 46px 1fr auto;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.4rem;
+  border-radius: 5px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.item:hover {
+  background: rgba(78, 204, 163, 0.07);
+}
+
+.itemActive {
+  background: rgba(78, 204, 163, 0.13);
+  border-color: rgba(78, 204, 163, 0.35);
+}
+
+.itemNudge {
+  background: rgba(243, 156, 18, 0.1);
+  border-color: rgba(243, 156, 18, 0.3);
+}
+
+/* ── Row parts ───────────────────────────────────────────────────────────── */
+.typeDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.clock {
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  color: #4ecca3;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.typeName {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #e0e0e0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player {
+  font-size: 0.68rem;
+  color: #bbb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.team {
+  font-size: 0.6rem;
+  color: #555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.badge {
+  font-size: 0.58rem;
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 0.08rem 0.3rem;
+  align-self: flex-start;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.badgeGoal {
+  background: rgba(243, 156, 18, 0.18);
+  color: #f39c12;
+}
+
+.badgeShot {
+  background: rgba(231, 76, 60, 0.14);
+  color: #e74c3c;
+}
+
+.nudge {
+  font-size: 0.62rem;
+  color: #f39c12;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.videoTime {
+  font-size: 0.63rem;
+  font-variant-numeric: tabular-nums;
+  color: #444;
+  white-space: nowrap;
+  align-self: flex-start;
+  padding-top: 0.15rem;
+}
+
+.itemActive .videoTime {
+  color: #777;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.empty {
+  padding: 1.5rem 0.5rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #555;
+}

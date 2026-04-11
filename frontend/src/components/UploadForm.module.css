@@ -1,0 +1,61 @@
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 2px dashed #0f3460;
+  border-radius: 8px;
+  padding: 2.5rem 1rem;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.dropzone:hover,
+.over {
+  border-color: #4ecca3;
+  background: rgba(78, 204, 163, 0.05);
+}
+
+.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.fileInput {
+  display: none;
+}
+
+.icon {
+  font-size: 2.5rem;
+}
+
+.label {
+  font-size: 1rem;
+  color: #ccc;
+}
+
+.hint {
+  font-size: 0.75rem;
+  color: #666;
+}
+
+.progressBar {
+  margin-top: 0.75rem;
+  height: 6px;
+  background: #0f3460;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: #4ecca3;
+  transition: width 0.2s;
+}
+
+.error {
+  margin-top: 0.75rem;
+  color: #e74c3c;
+  font-size: 0.875rem;
+}

@@ -1,0 +1,115 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  background: #1a1a2e;
+  padding: 1.25rem 2rem;
+  border-bottom: 2px solid #16213e;
+}
+
+.header h1 {
+  font-size: 1.7rem;
+  color: #4ecca3;
+  letter-spacing: 0.5px;
+}
+
+.subtitle {
+  margin-top: 0.2rem;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.main {
+  flex: 1;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ── Shared card ────────────────────────────────────────────────────────── */
+.card {
+  background: #16213e;
+  border-radius: 8px;
+  padding: 1.1rem 1.4rem;
+  border: 1px solid #0f3460;
+}
+
+.card h2 {
+  font-size: 0.75rem;
+  color: #4ecca3;
+  margin-bottom: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* ── Workspace (two-column layout after upload) ─────────────────────────── */
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+/* Left column */
+.playerColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Right column */
+.sideColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* ── Event sidebar ──────────────────────────────────────────────────────── */
+.eventSidebar {
+  background: #16213e;
+  border-radius: 8px;
+  border: 1px solid #0f3460;
+  padding: 0.9rem 1rem;
+  max-height: calc(100vh - 220px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.eventSidebar h2 {
+  font-size: 0.75rem;
+  color: #4ecca3;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 0.6rem;
+  flex-shrink: 0;
+}
+
+/* ── Hint messages ──────────────────────────────────────────────────────── */
+.calibrationHint {
+  font-size: 0.8rem;
+  color: #f39c12;
+  background: rgba(243, 156, 18, 0.07);
+  border: 1px solid rgba(243, 156, 18, 0.2);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+}
+
+.waitNote {
+  font-size: 0.82rem;
+  color: #888;
+}
+
+/* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+  .eventSidebar {
+    max-height: 380px;
+  }
+}

@@ -1,0 +1,13 @@
+.wrapper {
+  width: 100%;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #0f3460;
+}
+
+.video {
+  width: 100%;
+  max-height: 520px;
+  display: block;
+}

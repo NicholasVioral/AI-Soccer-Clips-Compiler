@@ -1,0 +1,91 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.track {
+  position: relative;
+  height: 36px;
+  background: #0f0f1a;
+  border-radius: 4px;
+  border: 1px solid #0f3460;
+  cursor: pointer;
+  overflow: visible;
+}
+
+.playhead {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  background: #fff;
+  border-radius: 2px;
+  pointer-events: none;
+  transform: translateX(-50%);
+  z-index: 10;
+}
+
+.marker {
+  position: absolute;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  transition: transform 0.1s;
+  z-index: 5;
+}
+
+.marker:hover {
+  transform: translate(-50%, -50%) scale(2);
+  z-index: 20;
+}
+
+.periodDivider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.periodLabels {
+  display: flex;
+  position: relative;
+  font-size: 0.65rem;
+  color: #555;
+  height: 12px;
+}
+
+.periodLabels span {
+  position: absolute;
+}
+
+.periodLabels span:first-child {
+  left: 0;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.7rem;
+  color: #aaa;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}

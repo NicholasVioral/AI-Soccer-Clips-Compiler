@@ -1,0 +1,17 @@
+# ── Core web framework ────────────────────────────────────────────────────────
+flask==3.0.3
+flask-cors==4.0.1
+werkzeug==3.0.3
+python-dotenv==1.0.1
+
+# ── StatsBomb data ────────────────────────────────────────────────────────────
+statsbombpy==1.17.0
+requests==2.32.3
+
+# ── Fuzzy team-name matching ──────────────────────────────────────────────────
+# Enables "MAN CITY" to match "Manchester City" in search_matches().
+rapidfuzz==3.9.1
+
+# ── Video frame extraction + OCR ─────────────────────────────────────────────
+opencv-python-headless
+pytesseract

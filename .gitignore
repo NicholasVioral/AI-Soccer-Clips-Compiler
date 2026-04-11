@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+env/
+*.egg-info/
+
+# Uploads & generated clips
+backend/uploads/
+backend/clips/
+
+# Video files
+*.mp4
+*.mkv
+*.avi
+*.mov
+
+# Environment
+.env
+*.env
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# OS
+.DS_Store
+Thumbs.db

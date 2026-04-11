@@ -1,0 +1,339 @@
+.panel {
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 8px;
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.heading {
+  font-size: 0.75rem;
+  color: #4ecca3;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+/* ── Field wrapper ───────────────────────────────────────────────────────── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #666;
+}
+
+/* ── Player select ───────────────────────────────────────────────────────── */
+.select {
+  background: #0f0f1a;
+  border: 1px solid #1a2a4a;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 0.82rem;
+  padding: 0.4rem 0.6rem;
+  outline: none;
+  cursor: pointer;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+.select:focus {
+  border-color: #4ecca3;
+}
+
+/* ── Type filter chips ───────────────────────────────────────────────────── */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chip {
+  background: #0f0f1a;
+  border: 1px solid #1a2a4a;
+  color: #888;
+  border-radius: 20px;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.chip:hover,
+.chipActive {
+  border-color: #4ecca3;
+  color: #4ecca3;
+}
+
+/* ── Selection bar ───────────────────────────────────────────────────────── */
+.selectionBar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.selectionCount {
+  font-size: 0.72rem;
+  color: #888;
+  flex: 1;
+}
+
+.textBtn {
+  background: none;
+  border: none;
+  color: #4ecca3;
+  font-size: 0.72rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── Event list ──────────────────────────────────────────────────────────── */
+.eventList {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 280px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #1a2a4a transparent;
+}
+
+.eventList::-webkit-scrollbar       { width: 4px; }
+.eventList::-webkit-scrollbar-thumb { background: #1a2a4a; border-radius: 2px; }
+
+.eventRow {
+  display: grid;
+  grid-template-columns: 18px 8px 46px 1fr auto;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.32rem 0.4rem;
+  border-radius: 5px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.1s;
+}
+
+.eventRow:hover {
+  background: rgba(78, 204, 163, 0.06);
+}
+
+.eventRowChecked {
+  background: rgba(78, 204, 163, 0.1);
+  border-color: rgba(78, 204, 163, 0.25);
+}
+
+.eventRowWarn {
+  opacity: 0.6;
+}
+
+.checkbox {
+  accent-color: #4ecca3;
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.clock {
+  font-size: 0.68rem;
+  color: #4ecca3;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.eventDetails {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.typeName {
+  font-size: 0.75rem;
+  color: #ddd;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge {
+  font-size: 0.58rem;
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 0.06rem 0.28rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.badgeGoal {
+  background: rgba(243, 156, 18, 0.18);
+  color: #f39c12;
+}
+
+.badgeMiss {
+  background: rgba(231, 76, 60, 0.14);
+  color: #e74c3c;
+}
+
+.badgeP1 {
+  font-size: 0.55rem;
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 0.06rem 0.28rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  background: rgba(100, 100, 120, 0.25);
+  color: #888;
+  border: 1px solid #333;
+}
+
+.videoTime {
+  font-size: 0.62rem;
+  color: #555;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.videoTimeWarn {
+  font-size: 0.62rem;
+  color: #e67e22;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.empty {
+  padding: 1rem 0.5rem;
+  text-align: center;
+  font-size: 0.78rem;
+  color: #555;
+}
+
+/* ── Padding controls ────────────────────────────────────────────────────── */
+.paddingRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.paddingControls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.paddingLabel {
+  font-size: 0.75rem;
+  color: #888;
+}
+
+.paddingInput {
+  width: 48px;
+  background: #0f0f1a;
+  border: 1px solid #1a2a4a;
+  border-radius: 5px;
+  color: #e0e0e0;
+  font-size: 0.82rem;
+  padding: 0.25rem 0.4rem;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.paddingInput:focus {
+  border-color: #4ecca3;
+}
+
+/* ── Generate button ─────────────────────────────────────────────────────── */
+.generateBtn {
+  background: #4ecca3;
+  color: #0f0f1a;
+  border: none;
+  border-radius: 7px;
+  padding: 0.55rem 1rem;
+  font-weight: 700;
+  font-size: 0.88rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: opacity 0.15s;
+}
+
+.generateBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(15, 15, 26, 0.3);
+  border-top-color: #0f0f1a;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Download row ────────────────────────────────────────────────────────── */
+.downloadRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.successMsg {
+  font-size: 0.78rem;
+  color: #4ecca3;
+  flex: 1;
+}
+
+.downloadBtn {
+  background: #4ecca3;
+  color: #0f0f1a;
+  border-radius: 6px;
+  padding: 0.42rem 0.9rem;
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+
+.downloadBtn:hover {
+  opacity: 0.88;
+}
+
+/* ── Misc ────────────────────────────────────────────────────────────────── */
+.error {
+  font-size: 0.78rem;
+  color: #e74c3c;
+}
+
+.hint {
+  font-size: 0.72rem;
+  color: #f39c12;
+}
