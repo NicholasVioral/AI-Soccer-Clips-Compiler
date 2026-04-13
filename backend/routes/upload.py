@@ -1,5 +1,5 @@
 import os
-from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app, send_file, Response
 from werkzeug.utils import secure_filename
 from services.video_analyzer import analyze_video
 
@@ -10,6 +10,44 @@ ALLOWED_EXTENSIONS = {"mp4", "mkv", "avi", "mov", "webm"}
 
 def allowed_file(filename):
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@upload_bp.route("/upload/list", methods=["GET"])
+def list_uploads():
+    """Return filenames already in the uploads folder."""
+    folder = current_app.config["UPLOAD_FOLDER"]
+    files  = [f for f in os.listdir(folder)
+              if os.path.isfile(os.path.join(folder, f)) and allowed_file(f)]
+    return jsonify({"files": sorted(files)}), 200
+
+
+@upload_bp.route("/video/stream/<path:filename>", methods=["GET"])
+def stream_video(filename):
+    """Stream a video from the uploads folder with range-request support."""
+    path = os.path.join(current_app.config["UPLOAD_FOLDER"], secure_filename(filename))
+    if not os.path.isfile(path):
+        return jsonify({"error": "Not found"}), 404
+    return send_file(path, mimetype="video/mp4", conditional=True)
+
+
+@upload_bp.route("/upload/register", methods=["POST"])
+def register_video():
+    """Register a video that's already in the uploads folder — no file transfer needed."""
+    data     = request.get_json(force=True)
+    filename = data.get("filename", "")
+    if not filename:
+        return jsonify({"error": "filename is required"}), 400
+
+    save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
+    if not os.path.isfile(save_path):
+        return jsonify({"error": f"File not found in uploads: {filename}"}), 404
+
+    match_info = analyze_video(save_path, filename)
+    return jsonify({
+        "message": "Video registered",
+        "filename": filename,
+        "match_info": match_info,
+    }), 200
 
 
 @upload_bp.route("/upload", methods=["POST"])

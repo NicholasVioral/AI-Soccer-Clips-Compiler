@@ -37,15 +37,14 @@ def generate():
 
     filename       = data.get("filename", "")
     events         = data.get("events", [])
-    all_events     = data.get("all_events") or []  # full event list for smart clip ending
-    kickoff_offset = data.get("kickoff_offset")
-    clock_map      = data.get("clock_map")        # preferred over kickoff_offset
+    all_events     = data.get("all_events") or []
+    clock_map      = data.get("clock_map")
+    # half_offsets: {"1": float, "2": float} — one offset per half
+    raw_half       = data.get("half_offsets") or {}
+    half_offsets   = {int(k): float(v) for k, v in raw_half.items() if v is not None}
     padding_before = float(data.get("padding_before", 5))
     padding_after  = float(data.get("padding_after", 10))
     video_duration = data.get("video_duration")
-
-    if kickoff_offset is not None:
-        kickoff_offset = float(kickoff_offset)
 
     if not filename:
         return jsonify({"error": "filename is required"}), 400
@@ -58,7 +57,7 @@ def generate():
 
     segments = events_to_segments(
         events,
-        kickoff_offset=kickoff_offset,
+        half_offsets=half_offsets,
         clock_map=clock_map,
         padding_before=padding_before,
         padding_after=padding_after,

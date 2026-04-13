@@ -58,13 +58,16 @@ def _cut_clip(video_path: str, start: float, duration: float, output_path: str) 
     # FFmpeg internally does a container seek + frame-level discard, so it
     # doesn't need to decode the entire file from the beginning, and the cut
     # is exact regardless of keyframe positions or B-frame reordering.
+    # Input-side -ss seeks to the nearest keyframe (fast, no full decode).
+    # -c copy avoids re-encoding so even 1080p clips finish in seconds.
+    # The clip may start up to ~2s early (keyframe alignment) which is
+    # covered by the padding_before buffer.
     _run([
         "ffmpeg", "-y",
-        "-i", video_path,
         "-ss", f"{max(start, 0):.3f}",
+        "-i", video_path,
         "-t",  f"{max(duration, 0.5):.3f}",
-        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
-        "-c:a", "aac", "-b:a", "128k",
+        "-c", "copy",
         "-movflags", "+faststart",
         output_path,
     ])
@@ -137,34 +140,36 @@ def generate_highlight_reel(
 def _to_video_time(
     match_s: float,
     clock_map: list[dict] | None,
-    kickoff_offset: float | None,
+    half_offsets: dict | None,
+    period: int = 1,
 ) -> float | None:
-    """Convert match seconds to video seconds using clock map or offset."""
+    """Convert match seconds to video seconds using clock map or per-half offset."""
     from services.clock_scanner import interpolate_video_time
 
     if clock_map:
         vt = interpolate_video_time(match_s, clock_map)
         if vt is not None:
             return vt
-        # Extrapolate beyond the last clock map entry (up to 10 minutes).
-        # Use the slope from the last ~2 minutes of clock-map entries rather
-        # than assuming 1:1, because added time has extra broadcast content
-        # (replays, stoppages) that makes real time pass slower than match time.
         s = sorted(clock_map, key=lambda x: x["match_seconds"])
         last = s[-1]
         delta_match = match_s - last["match_seconds"]
         if 0 < delta_match <= 600:
             return last["video_seconds"] + delta_match
         return None
-    if kickoff_offset is not None:
-        return match_s + kickoff_offset
+
+    if half_offsets:
+        offset = (half_offsets.get(period)
+                  or half_offsets.get(1)
+                  or half_offsets.get(2))
+        if offset is not None:
+            return match_s + offset
     return None
 
 
 
 def events_to_segments(
     events: list[dict],
-    kickoff_offset: float | None = None,
+    half_offsets: dict | None = None,
     padding_before: float = 5.0,
     padding_after: float = 10.0,
     video_duration: float | None = None,
@@ -186,9 +191,10 @@ def events_to_segments(
     segments: list[ClipSegment] = []
     for e in events:
         match_s = e.get("match_seconds") or 0
+        period  = e.get("period") or 1
         player  = e.get("player")
 
-        video_time = _to_video_time(match_s, clock_map, kickoff_offset)
+        video_time = _to_video_time(match_s, clock_map, half_offsets, period)
         if video_time is None:
             continue
         if video_time < 0:
@@ -212,11 +218,14 @@ def events_to_segments(
                     possession_end_match_s = fms + 1
                     break
 
+        # Always guarantee at least padding_after seconds from the event.
+        # Possession change only extends beyond that — never cuts it short.
+        min_end = video_time + padding_after
         if possession_end_match_s is not None:
-            end_vt = _to_video_time(possession_end_match_s, clock_map, kickoff_offset)
-            end = end_vt if end_vt is not None else video_time + padding_after
+            end_vt = _to_video_time(possession_end_match_s, clock_map, half_offsets, period)
+            end = max(min_end, end_vt if end_vt is not None else min_end)
         else:
-            end = video_time + padding_after
+            end = min_end
 
         if video_duration is not None:
             end = min(end, video_duration)

@@ -1,12 +1,33 @@
-import React, { useState, useCallback } from "react";
-import { uploadVideo } from "../services/api";
+import React, { useState, useCallback, useEffect } from "react";
+import { uploadVideo, api } from "../services/api";
 import styles from "./UploadForm.module.css";
 
 export default function UploadForm({ onVideoUploaded }) {
-  const [dragging, setDragging] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState(null);
+  const [dragging, setDragging]       = useState(false);
+  const [progress, setProgress]       = useState(0);
+  const [uploading, setUploading]     = useState(false);
+  const [error, setError]             = useState(null);
+  const [serverFiles, setServerFiles] = useState([]);
+  const [showPicker, setShowPicker]   = useState(false);
+
+  // Load files already in the uploads folder
+  useEffect(() => {
+    api.get("/upload/list").then(r => setServerFiles(r.data.files || [])).catch(() => {});
+  }, []);
+
+  const handleRegister = useCallback(async (filename) => {
+    setError(null);
+    setUploading(true);
+    try {
+      const { data } = await api.post("/upload/register", { filename });
+      const videoUrl = `/api/video/stream/${filename}`;
+      onVideoUploaded(videoUrl, data.match_info, data.filename);
+    } catch (err) {
+      setError(err.response?.data?.error ?? "Failed to register file.");
+    } finally {
+      setUploading(false);
+    }
+  }, [onVideoUploaded]);
 
   const handleFile = useCallback(
     async (file) => {
@@ -68,6 +89,25 @@ export default function UploadForm({ onVideoUploaded }) {
       {uploading && (
         <div className={styles.progressBar}>
           <div className={styles.progressFill} style={{ width: `${progress}%` }} />
+        </div>
+      )}
+
+      {serverFiles.length > 0 && (
+        <div className={styles.serverFiles}>
+          <button className={styles.serverFilesToggle} onClick={() => setShowPicker(v => !v)}>
+            {showPicker ? "▲" : "▼"} Use a file already on the server ({serverFiles.length})
+          </button>
+          {showPicker && (
+            <ul className={styles.fileList}>
+              {serverFiles.map(f => (
+                <li key={f}>
+                  <button className={styles.fileBtn} onClick={() => handleRegister(f)} disabled={uploading}>
+                    {f}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

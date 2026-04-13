@@ -27,7 +27,7 @@ export default function EventTimeline({
   // Position an event on the scrubbar (0–100%) relative to full video duration
   const toPercent = (e) => {
     if (!duration) return 0;
-    const vt = toVideoTime(e.match_seconds ?? 0);
+    const vt = toVideoTime(e.match_seconds ?? 0, e.period ?? 1);
     if (vt == null) return -1;
     return Math.min(100, Math.max(0, (vt / duration) * 100));
   };
@@ -68,7 +68,7 @@ export default function EventTimeline({
 
         {/* Event markers */}
         {events.map((e, i) => {
-          const vt = toVideoTime(e.match_seconds ?? 0);
+          const vt = toVideoTime(e.match_seconds ?? 0, e.period ?? 1);
           return (
             <div
               key={e.id ?? i}

@@ -59,3 +59,49 @@
   color: #e74c3c;
   font-size: 0.875rem;
 }
+
+.serverFiles {
+  margin-top: 0.75rem;
+}
+
+.serverFilesToggle {
+  background: none;
+  border: none;
+  color: #4ecca3;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.fileList {
+  list-style: none;
+  padding: 0.5rem 0 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fileBtn {
+  background: #0f0f1a;
+  border: 1px solid #1a2a4a;
+  color: #ccc;
+  border-radius: 5px;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.fileBtn:hover:not(:disabled) {
+  border-color: #4ecca3;
+  color: #4ecca3;
+}
+
+.fileBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

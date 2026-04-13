@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import UploadForm from "./components/UploadForm";
 import MatchSelector from "./components/MatchSelector";
 import VideoPlayer from "./components/VideoPlayer";
@@ -23,7 +23,7 @@ export default function App() {
   const [events, setEvents]               = useState([]);
   const [currentTime, setCurrentTime]     = useState(0);
   const [duration, setDuration]           = useState(0);
-  const [kickoffOffset, setKickoffOffset] = useState(null);
+  const [halfOffsets, setHalfOffsets] = useState({ 1: null, 2: null });
 
   // Clock map from broadcast clock scanner
   const [clockMap, setClockMap]       = useState(null);   // null = not scanned yet
@@ -35,17 +35,24 @@ export default function App() {
   // ── Unified video-time converter ─────────────────────────────────────────
   // All components use this instead of calling match_seconds + kickoffOffset
   // directly, so the clock-map path is automatically used when available.
-  const toVideoTime = useCallback((matchSeconds) => {
+  const toVideoTime = useCallback((matchSeconds, period = 1) => {
     if (clockMap && clockMap.length > 0) {
       return interpolateVideoTime(matchSeconds, clockMap);
     }
-    if (kickoffOffset !== null) {
-      return matchSeconds + kickoffOffset;
+    // Use per-half offset — fall back to the other half if only one is set
+    const offset = halfOffsets[period] ?? halfOffsets[period === 1 ? 2 : 1];
+    if (offset !== null && offset !== undefined) {
+      return matchSeconds + offset;
     }
     return null;
-  }, [clockMap, kickoffOffset]);
+  }, [clockMap, halfOffsets]);
 
-  const isSynced = (clockMap && clockMap.length >= 10) || kickoffOffset !== null;
+  const isSynced = (clockMap && clockMap.length >= 10) ||
+                   halfOffsets[1] !== null || halfOffsets[2] !== null;
+
+  const handleHalfCalibrated = useCallback((period, offset) => {
+    setHalfOffsets(prev => ({ ...prev, [period]: offset }));
+  }, []);
 
   // ── Auto-scan when a video is uploaded ──────────────────────────────────
   const startScan = useCallback(async (filename) => {
@@ -77,14 +84,12 @@ export default function App() {
     setVideoFilename(filename ?? null);
     setMatchInfo(info);
     setEvents([]);
-    setKickoffOffset(null);
+    setHalfOffsets({ 1: null, 2: null });
     setClockMap(null);
     setScanStatus(SCAN_IDLE);
     setScanError(null);
 
-    if (filename) {
-      startScan(filename);
-    }
+    // Auto-scan disabled — use manual half calibration below
   }, [startScan]);
 
   const handleMatchSelected = useCallback((_matchId, fetchedEvents) => {
@@ -129,8 +134,8 @@ export default function App() {
               <KickoffCalibrator
                 videoRef={videoRef}
                 currentTime={currentTime}
-                kickoffOffset={kickoffOffset}
-                onCalibrated={setKickoffOffset}
+                halfOffsets={halfOffsets}
+                onHalfCalibrated={handleHalfCalibrated}
                 events={events}
                 scanStatus={scanStatus}
                 scanError={scanError}
@@ -185,7 +190,7 @@ export default function App() {
                   events={events}
                   toVideoTime={toVideoTime}
                   clockMap={clockMap}
-                  kickoffOffset={kickoffOffset}
+                  halfOffsets={halfOffsets}
                   videoFilename={videoFilename}
                   duration={duration}
                   isSynced={isSynced}

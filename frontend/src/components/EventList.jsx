@@ -117,7 +117,7 @@ export default function EventList({ events, currentTime, toVideoTime, isSynced, 
     let bestId = null;
     let bestDiff = Infinity;
     for (const e of filtered) {
-      const vt = toVideoTime(e.match_seconds ?? 0);
+      const vt = toVideoTime(e.match_seconds ?? 0, e.period ?? 1);
       if (vt == null) continue;
       const diff = Math.abs(vt - currentTime);
       if (diff < bestDiff) {
@@ -152,7 +152,7 @@ export default function EventList({ events, currentTime, toVideoTime, isSynced, 
         setTimeout(() => setNudgeId(null), 2200);
         return;
       }
-      onSeek(toVideoTime(e.match_seconds ?? 0));
+      onSeek(toVideoTime(e.match_seconds ?? 0, e.period ?? 1));
     },
     [calibrated, toVideoTime, onSeek]
   );
@@ -241,7 +241,7 @@ export default function EventList({ events, currentTime, toVideoTime, isSynced, 
           const e = item.event;
           const isActive = e.id === activeEventId;
           const isNudging = e.id === nudgeId;
-          const vt = calibrated ? toVideoTime(e.match_seconds ?? 0) : null;
+          const vt = calibrated ? toVideoTime(e.match_seconds ?? 0, e.period ?? 1) : null;
           const videoLabel = fmtVideo(vt);
 
           return (

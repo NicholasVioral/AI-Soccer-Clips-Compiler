@@ -40,7 +40,7 @@ export default function PlayerHighlights({
   events,
   toVideoTime,
   clockMap,
-  kickoffOffset,
+  halfOffsets,
   videoFilename,
   duration,
   isSynced,
@@ -139,7 +139,7 @@ export default function PlayerHighlights({
         events:         chosenEvents,
         all_events:     events,
         clock_map:      clockMap ?? undefined,
-        kickoff_offset: kickoffOffset ?? undefined,
+        half_offsets:   halfOffsets ?? undefined,
         padding_before: paddingBefore,
         padding_after:  paddingAfter,
         video_duration: duration || undefined,
@@ -153,7 +153,7 @@ export default function PlayerHighlights({
     } finally {
       setGenerating(false);
     }
-  }, [selected, events, videoFilename, clockMap, kickoffOffset, paddingBefore, paddingAfter, duration]);
+  }, [selected, events, videoFilename, clockMap, halfOffsets, paddingBefore, paddingAfter, duration]);
 
   const downloadUrl = clipId ? `/api/clips/${clipId}` : null;
 
@@ -213,7 +213,7 @@ export default function PlayerHighlights({
           <ul className={styles.eventList}>
             {playerEvents.map((e) => {
               const isChecked = selected.has(e.id);
-              const vt        = toVideoTime(e.match_seconds ?? 0);
+              const vt        = toVideoTime(e.match_seconds ?? 0, e.period ?? 1);
               const outOfRange = vt !== null && (vt < 0 || (duration && vt > duration));
               const period1   = e.period === 1;
               return (
