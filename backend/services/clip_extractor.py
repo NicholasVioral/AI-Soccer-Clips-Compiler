@@ -137,6 +137,13 @@ def generate_highlight_reel(
     return output_path
 
 
+# Event types that indicate a player has ball possession
+POSSESSION_EVENTS = frozenset({
+    "Ball Receipt*", "Carry", "Dribble", "Shot", "Pass", "Goal Keeper",
+    "Dribbled Past", "Miscontrol",
+})
+
+
 def _to_video_time(
     match_s: float,
     clock_map: list[dict] | None,
@@ -177,15 +184,18 @@ def events_to_segments(
     all_events: list[dict] | None = None,
 ) -> list[ClipSegment]:
     """
-    Convert StatsBomb events → ClipSegments.
+    Convert StatsBomb events → ClipSegments using context-aware boundaries.
 
-    If *all_events* is supplied the clip end time is determined by scanning
-    forward through the full event stream: the clip continues while the same
-    player has the ball (Carry, Pass, Shot, …) and stops when possession
-    switches to another player or after *padding_after* seconds, whichever
-    is sooner.
+    Clip start: scan backward for the Ball Receipt* that began this player's
+    current possession (skipping non-possession events by other players such as
+    Pressure). Stops scanning when another player's possession event is found.
+    Falls back to padding_before if no Ball Receipt* is found.
+
+    Clip end varies by event type:
+      Pass   → next Ball Receipt* (any player) + 2 s  (see where ball lands)
+      Shot   → padding_after minimum to see the outcome
+      Others → first possession event by a different player + 1 s, or padding_after
     """
-    # Build a sorted lookup of all events by match_seconds for smart ending
     sorted_all = sorted(all_events or [], key=lambda e: e.get("match_seconds") or 0)
 
     segments: list[ClipSegment] = []
@@ -193,6 +203,7 @@ def events_to_segments(
         match_s = e.get("match_seconds") or 0
         period  = e.get("period") or 1
         player  = e.get("player")
+        etype   = e.get("type", "")
 
         video_time = _to_video_time(match_s, clock_map, half_offsets, period)
         if video_time is None:
@@ -202,25 +213,72 @@ def events_to_segments(
         if video_duration is not None and video_time > video_duration:
             continue
 
-        start = max(0.0, video_time - padding_before)
+        # ── Clip start: Ball Receipt* that began this possession ──────────────
+        possession_start_match_s = None
+        if player and sorted_all:
+            for past in reversed(sorted_all):
+                pms = past.get("match_seconds") or 0
+                if pms >= match_s:
+                    continue
+                if pms < match_s - 60:          # never look back more than 60 s
+                    break
+                if past.get("period") != period:
+                    break
+                ptype   = past.get("type", "")
+                pplayer = past.get("player")
+                if pplayer == player:
+                    if ptype == "Ball Receipt*":
+                        possession_start_match_s = pms
+                        break                    # found the possession start
+                    # Carry / Dribble by same player → keep scanning back
+                elif ptype in POSSESSION_EVENTS:
+                    # Another player's possession event → our player got ball after it
+                    break
+                # else: non-possession event by another player (Pressure, Foul…) → skip
 
-        # Smart end: scan forward and stop 1s after the first event by a different player.
-        # Falls back to padding_after only if no possession change is found.
+        if possession_start_match_s is not None:
+            start_vt = _to_video_time(possession_start_match_s, clock_map, half_offsets, period)
+            # 1 s lead-in so the incoming ball is visible
+            start = max(0.0, (start_vt if start_vt is not None else video_time) - 1.0)
+        else:
+            start = max(0.0, video_time - padding_before)
+
+        # ── Clip end: context-aware per event type ────────────────────────────
         possession_end_match_s = None
         if player and sorted_all:
             for future in sorted_all:
                 fms = future.get("match_seconds") or 0
                 if fms <= match_s:
                     continue
-                if fms > match_s + 60:
-                    break  # safety cap
-                if future.get("player") != player:
-                    possession_end_match_s = fms + 1
+                if fms > match_s + 60:          # safety cap
                     break
+                ftype   = future.get("type", "")
+                fplayer = future.get("player")
 
-        # Always guarantee at least padding_after seconds from the event.
-        # Possession change only extends beyond that — never cuts it short.
-        min_end = video_time + padding_after
+                if etype == "Pass":
+                    # End when the next player receives the ball
+                    if ftype == "Ball Receipt*":
+                        possession_end_match_s = fms + 2
+                        break
+                elif etype == "Shot":
+                    # End when keeper acts or next player receives
+                    if ftype in ("Ball Receipt*", "Goal Keeper") and fplayer != player:
+                        possession_end_match_s = fms + 2
+                        break
+                else:
+                    # Generic: end at first possession event by a different player
+                    if fplayer != player and ftype in POSSESSION_EVENTS:
+                        possession_end_match_s = fms + 1
+                        break
+
+        # Minimum duration floor (so clips aren't impossibly short)
+        if etype == "Shot":
+            min_end = video_time + padding_after   # must see whether it goes in
+        elif etype == "Pass":
+            min_end = video_time + 3.0             # at least 3 s past the kick
+        else:
+            min_end = video_time + padding_after
+
         if possession_end_match_s is not None:
             end_vt = _to_video_time(possession_end_match_s, clock_map, half_offsets, period)
             end = max(min_end, end_vt if end_vt is not None else min_end)
