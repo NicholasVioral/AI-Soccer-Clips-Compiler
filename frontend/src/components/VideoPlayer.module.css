@@ -1,9 +1,9 @@
 .wrapper {
   width: 100%;
   background: #000;
-  border-radius: 8px;
+  border-radius: 14px;
   overflow: hidden;
-  border: 1px solid #0f3460;
+  border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .video {

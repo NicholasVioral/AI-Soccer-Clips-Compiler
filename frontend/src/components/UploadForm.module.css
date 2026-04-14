@@ -4,8 +4,8 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border: 2px dashed #0f3460;
-  border-radius: 8px;
+  border: 2px dashed rgba(124, 92, 252, 0.35);
+  border-radius: 12px;
   padding: 2.5rem 1rem;
   cursor: pointer;
   transition: border-color 0.2s, background 0.2s;
@@ -13,12 +13,12 @@
 
 .dropzone:hover,
 .over {
-  border-color: #4ecca3;
-  background: rgba(78, 204, 163, 0.05);
+  border-color: #7c5cfc;
+  background: rgba(124, 92, 252, 0.05);
 }
 
 .disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -32,26 +32,27 @@
 
 .label {
   font-size: 1rem;
-  color: #ccc;
+  color: #8b8da8;
 }
 
 .hint {
   font-size: 0.75rem;
-  color: #666;
+  color: #4e4f6b;
 }
 
 .progressBar {
   margin-top: 0.75rem;
-  height: 6px;
-  background: #0f3460;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.06);
   border-radius: 3px;
   overflow: hidden;
 }
 
 .progressFill {
   height: 100%;
-  background: #4ecca3;
+  background: linear-gradient(90deg, #7c5cfc, #9d7dfe);
   transition: width 0.2s;
+  border-radius: 3px;
 }
 
 .error {
@@ -67,7 +68,7 @@
 .serverFilesToggle {
   background: none;
   border: none;
-  color: #4ecca3;
+  color: #7c5cfc;
   font-size: 0.8rem;
   cursor: pointer;
   padding: 0;
@@ -84,10 +85,10 @@
 }
 
 .fileBtn {
-  background: #0f0f1a;
-  border: 1px solid #1a2a4a;
-  color: #ccc;
-  border-radius: 5px;
+  background: #0f101d;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: #8b8da8;
+  border-radius: 8px;
   padding: 0.4rem 0.75rem;
   font-size: 0.8rem;
   cursor: pointer;
@@ -97,11 +98,11 @@
 }
 
 .fileBtn:hover:not(:disabled) {
-  border-color: #4ecca3;
-  color: #4ecca3;
+  border-color: #7c5cfc;
+  color: #f0f0f8;
 }
 
 .fileBtn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }

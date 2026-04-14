@@ -5,26 +5,30 @@
 }
 
 .header {
-  background: #1a1a2e;
-  padding: 1.25rem 2rem;
-  border-bottom: 2px solid #16213e;
+  background: #12131e;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .header h1 {
-  font-size: 1.7rem;
-  color: #4ecca3;
-  letter-spacing: 0.5px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #f0f0f8;
+  letter-spacing: -0.2px;
 }
 
 .subtitle {
-  margin-top: 0.2rem;
-  font-size: 0.85rem;
-  color: #666;
+  font-size: 0.8rem;
+  color: #4e4f6b;
+  margin-left: auto;
 }
 
 .main {
   flex: 1;
-  padding: 1.25rem 1.5rem;
+  padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -32,18 +36,20 @@
 
 /* ── Shared card ────────────────────────────────────────────────────────── */
 .card {
-  background: #16213e;
-  border-radius: 8px;
+  background: #13141f;
+  border-radius: 14px;
   padding: 1.1rem 1.4rem;
-  border: 1px solid #0f3460;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
 }
 
 .card h2 {
-  font-size: 0.75rem;
-  color: #4ecca3;
+  font-size: 0.7rem;
+  color: #7c5cfc;
   margin-bottom: 0.9rem;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.2px;
+  font-weight: 700;
 }
 
 /* ── Workspace (two-column layout after upload) ─────────────────────────── */
@@ -70,9 +76,9 @@
 
 /* ── Event sidebar ──────────────────────────────────────────────────────── */
 .eventSidebar {
-  background: #16213e;
-  border-radius: 8px;
-  border: 1px solid #0f3460;
+  background: #13141f;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
   padding: 0.9rem 1rem;
   max-height: calc(100vh - 220px);
   display: flex;
@@ -81,10 +87,11 @@
 }
 
 .eventSidebar h2 {
-  font-size: 0.75rem;
-  color: #4ecca3;
+  font-size: 0.7rem;
+  color: #7c5cfc;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.2px;
+  font-weight: 700;
   margin-bottom: 0.6rem;
   flex-shrink: 0;
 }
@@ -94,14 +101,14 @@
   font-size: 0.8rem;
   color: #f39c12;
   background: rgba(243, 156, 18, 0.07);
-  border: 1px solid rgba(243, 156, 18, 0.2);
-  border-radius: 6px;
+  border: 1px solid rgba(243, 156, 18, 0.18);
+  border-radius: 8px;
   padding: 0.5rem 0.75rem;
 }
 
 .waitNote {
   font-size: 0.82rem;
-  color: #888;
+  color: #4e4f6b;
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */

@@ -1,7 +1,7 @@
 .panel {
-  background: #16213e;
-  border: 1px solid #0f3460;
-  border-radius: 8px;
+  background: #13141f;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
   padding: 1.1rem 1.25rem;
   display: flex;
   flex-direction: column;
@@ -10,7 +10,7 @@
 
 .heading {
   font-size: 0.75rem;
-  color: #4ecca3;
+  color: #7c5cfc;
   text-transform: uppercase;
   letter-spacing: 1px;
   margin: 0;
@@ -27,15 +27,15 @@
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: #666;
+  color: #4e4f6b;
 }
 
 /* ── Player select ───────────────────────────────────────────────────────── */
 .select {
-  background: #0f0f1a;
-  border: 1px solid #1a2a4a;
-  border-radius: 6px;
-  color: #e0e0e0;
+  background: #0f101d;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  color: #f0f0f8;
   font-size: 0.82rem;
   padding: 0.4rem 0.6rem;
   outline: none;
@@ -45,7 +45,7 @@
 }
 
 .select:focus {
-  border-color: #4ecca3;
+  border-color: #7c5cfc;
 }
 
 /* ── Type filter chips ───────────────────────────────────────────────────── */
@@ -56,9 +56,9 @@
 }
 
 .chip {
-  background: #0f0f1a;
-  border: 1px solid #1a2a4a;
-  color: #888;
+  background: #0f101d;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: #8b8da8;
   border-radius: 20px;
   padding: 0.18rem 0.55rem;
   font-size: 0.68rem;
@@ -68,8 +68,8 @@
 
 .chip:hover,
 .chipActive {
-  border-color: #4ecca3;
-  color: #4ecca3;
+  border-color: #7c5cfc;
+  color: #7c5cfc;
 }
 
 /* ── Selection bar ───────────────────────────────────────────────────────── */
@@ -81,14 +81,14 @@
 
 .selectionCount {
   font-size: 0.72rem;
-  color: #888;
+  color: #8b8da8;
   flex: 1;
 }
 
 .textBtn {
   background: none;
   border: none;
-  color: #4ecca3;
+  color: #7c5cfc;
   font-size: 0.72rem;
   cursor: pointer;
   padding: 0;
@@ -105,11 +105,11 @@
   max-height: 280px;
   overflow-y: auto;
   scrollbar-width: thin;
-  scrollbar-color: #1a2a4a transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.07) transparent;
 }
 
 .eventList::-webkit-scrollbar       { width: 4px; }
-.eventList::-webkit-scrollbar-thumb { background: #1a2a4a; border-radius: 2px; }
+.eventList::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.07); border-radius: 2px; }
 
 .eventRow {
   display: grid;
@@ -117,19 +117,19 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.32rem 0.4rem;
-  border-radius: 5px;
+  border-radius: 8px;
   cursor: pointer;
   border: 1px solid transparent;
   transition: background 0.1s;
 }
 
 .eventRow:hover {
-  background: rgba(78, 204, 163, 0.06);
+  background: rgba(124, 92, 252, 0.06);
 }
 
 .eventRowChecked {
-  background: rgba(78, 204, 163, 0.1);
-  border-color: rgba(78, 204, 163, 0.25);
+  background: rgba(124, 92, 252, 0.12);
+  border-color: rgba(124, 92, 252, 0.25);
 }
 
 .eventRowWarn {
@@ -137,7 +137,7 @@
 }
 
 .checkbox {
-  accent-color: #4ecca3;
+  accent-color: #7c5cfc;
   width: 13px;
   height: 13px;
   cursor: pointer;
@@ -152,7 +152,7 @@
 
 .clock {
   font-size: 0.68rem;
-  color: #4ecca3;
+  color: #7c5cfc;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -168,7 +168,7 @@
 
 .typeName {
   font-size: 0.75rem;
-  color: #ddd;
+  color: #f0f0f8;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -202,13 +202,13 @@
   letter-spacing: 0.3px;
   white-space: nowrap;
   background: rgba(100, 100, 120, 0.25);
-  color: #888;
+  color: #8b8da8;
   border: 1px solid #333;
 }
 
 .videoTime {
   font-size: 0.62rem;
-  color: #555;
+  color: #4e4f6b;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   text-align: right;
@@ -226,7 +226,7 @@
   padding: 1rem 0.5rem;
   text-align: center;
   font-size: 0.78rem;
-  color: #555;
+  color: #4e4f6b;
 }
 
 /* ── Padding controls ────────────────────────────────────────────────────── */
@@ -244,15 +244,15 @@
 
 .paddingLabel {
   font-size: 0.75rem;
-  color: #888;
+  color: #8b8da8;
 }
 
 .paddingInput {
   width: 48px;
-  background: #0f0f1a;
-  border: 1px solid #1a2a4a;
-  border-radius: 5px;
-  color: #e0e0e0;
+  background: #0f101d;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  color: #f0f0f8;
   font-size: 0.82rem;
   padding: 0.25rem 0.4rem;
   text-align: center;
@@ -261,15 +261,15 @@
 }
 
 .paddingInput:focus {
-  border-color: #4ecca3;
+  border-color: #7c5cfc;
 }
 
 /* ── Generate button ─────────────────────────────────────────────────────── */
 .generateBtn {
-  background: #4ecca3;
-  color: #0f0f1a;
+  background: linear-gradient(135deg, #7c5cfc, #6248d0);
+  color: #fff;
   border: none;
-  border-radius: 7px;
+  border-radius: 10px;
   padding: 0.55rem 1rem;
   font-weight: 700;
   font-size: 0.88rem;
@@ -279,6 +279,7 @@
   justify-content: center;
   gap: 0.5rem;
   transition: opacity 0.15s;
+  box-shadow: 0 4px 14px rgba(124, 92, 252, 0.35);
 }
 
 .generateBtn:disabled {
@@ -290,8 +291,8 @@
   display: inline-block;
   width: 13px;
   height: 13px;
-  border: 2px solid rgba(15, 15, 26, 0.3);
-  border-top-color: #0f0f1a;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
 }
@@ -313,9 +314,9 @@
 }
 
 .downloadBtn {
-  background: #4ecca3;
-  color: #0f0f1a;
-  border-radius: 6px;
+  background: linear-gradient(135deg, #7c5cfc, #6248d0);
+  color: #fff;
+  border-radius: 8px;
   padding: 0.42rem 0.9rem;
   font-weight: 700;
   font-size: 0.82rem;
