@@ -1,6 +1,12 @@
 import axios from "axios";
 
-export const api = axios.create({ baseURL: "/api" });
+// Backend origin. In production set VITE_API_URL to the deployed Flask URL
+// (e.g. https://your-app.onrender.com); falls back to the local Flask dev
+// server. Exported so non-axios URLs (downloads, video <src>) can share it.
+export const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
+
+// "/api" matches the blueprints' url_prefix on the Flask backend.
+export const api = axios.create({ baseURL: `${API_URL}/api` });
 
 export const uploadVideo = (file, onProgress) => {
   const form = new FormData();

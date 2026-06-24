@@ -7,7 +7,12 @@ from routes.clips import clips_bp
 from routes.video import video_bp
 
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "http://localhost:3000"}})
+
+# The single allowed CORS origin is the Vercel frontend's URL, set via the
+# FRONTEND_URL env var so the domain is never hardcoded. Falls back to the
+# local Vite dev server when unset.
+_frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
+CORS(app, resources={r"/api/*": {"origins": _frontend_url}})
 
 app.config["UPLOAD_FOLDER"] = "uploads"
 app.config["CLIPS_FOLDER"] = "clips"

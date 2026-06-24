@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { generateClips } from "../services/api";
+import { generateClips, API_URL } from "../services/api";
 import styles from "./PlayerHighlights.module.css";
 
 const CLIP_EVENT_TYPES = new Set([
@@ -155,7 +155,7 @@ export default function PlayerHighlights({
     }
   }, [selected, events, videoFilename, clockMap, halfOffsets, paddingBefore, paddingAfter, duration]);
 
-  const downloadUrl = clipId ? `/api/clips/${clipId}` : null;
+  const downloadUrl = clipId ? `${API_URL}/api/clips/${clipId}` : null;
 
   // ── Render ────────────────────────────────────────────────────────────────
 

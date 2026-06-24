@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: soccer-clip-compiler-api
+    runtime: docker
+    # The backend needs ffmpeg + tesseract-ocr (system packages), which Render's
+    # native Python runtime can't apt-install. A Docker build can, so the service
+    # is built from backend/Dockerfile.
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      # The deployed frontend origin, consumed by flask-cors in app.py.
+      # Set this to your Vercel URL in the Render dashboard.
+      - key: FRONTEND_URL
+        sync: false

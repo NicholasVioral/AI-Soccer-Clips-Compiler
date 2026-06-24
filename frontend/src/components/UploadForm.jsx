@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { uploadVideo, api } from "../services/api";
+import { uploadVideo, api, API_URL } from "../services/api";
 import styles from "./UploadForm.module.css";
 
 export default function UploadForm({ onVideoUploaded }) {
@@ -20,7 +20,7 @@ export default function UploadForm({ onVideoUploaded }) {
     setUploading(true);
     try {
       const { data } = await api.post("/upload/register", { filename });
-      const videoUrl = `/api/video/stream/${filename}`;
+      const videoUrl = `${API_URL}/api/video/stream/${filename}`;
       onVideoUploaded(videoUrl, data.match_info, data.filename);
     } catch (err) {
       setError(err.response?.data?.error ?? "Failed to register file.");
