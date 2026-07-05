@@ -27,6 +27,21 @@ function formatOffset(seconds) {
   return `${sign}${m}:${String(s).padStart(2, "0")}`;
 }
 
+// Match clock as M:SS. Negative (playhead is before this half's reference)
+// gets a single leading minus — computing sign once avoids the "-3:-22" bug
+// from flooring/rounding a negative value in two places.
+function formatMatchClock(seconds) {
+  if (seconds == null || isNaN(seconds)) return "--:--";
+  const sign = seconds < 0 ? "−" : "";
+  const abs  = Math.abs(seconds);
+  const m    = Math.floor(abs / 60);
+  const s    = Math.round(abs % 60);
+  // Rounding seconds can land on 60 → roll into the next minute.
+  const mm   = s === 60 ? m + 1 : m;
+  const ss   = s === 60 ? 0 : s;
+  return `${sign}${mm}:${String(ss).padStart(2, "0")}`;
+}
+
 function stepVideo(videoRef, delta) {
   if (!videoRef.current) return;
   const v = videoRef.current;
@@ -69,10 +84,7 @@ function HalfCalibrator({ period, label, offset, onCalibrated, videoRef, current
         <div className={styles.halfSynced}>
           <span className={styles.halfSyncedText}>
             Video <strong>{formatVideoTime(currentTime)}</strong> = match{" "}
-            <strong>
-              {Math.floor((currentTime - offset) / 60)}:
-              {String(Math.round((currentTime - offset) % 60)).padStart(2, "0")}
-            </strong>
+            <strong>{formatMatchClock(currentTime - offset)}</strong>
           </span>
           <button className={styles.remarkLink} onClick={handleReset}>Re-sync</button>
         </div>

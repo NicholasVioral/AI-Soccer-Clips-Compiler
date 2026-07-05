@@ -380,6 +380,10 @@ def get_match_events(match_id: int) -> list[dict]:
             "play_pattern": _extract_name(row.get("play_pattern")),
             "under_pressure": bool(row["under_pressure"]) if "under_pressure" in row and pd.notna(row.get("under_pressure")) else None,
             "duration": _safe_float(row.get("duration")),
+            # Possession number groups every event of one continuous team
+            # sequence (build-up, carries, dribbles, shot). Used to include a
+            # player's run up the field in their shot/action clips.
+            "possession": _safe_int(row.get("possession")),
             # --- type-specific sub-events (None if not applicable) ---
             "shot": _extract_shot(row),
             "pass": _extract_pass(row),

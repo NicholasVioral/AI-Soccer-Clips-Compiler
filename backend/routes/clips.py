@@ -27,6 +27,7 @@ def generate():
         "kickoff_offset": 45.2,   // seconds into video where match starts
         "padding_before": 5,      // seconds before the event timestamp
         "padding_after":  10,     // seconds after the event timestamp
+        "max_clip_after": 15,     // hard cap: max seconds a clip runs past the event
         "video_duration": 5820    // optional — clips won't extend past this
     }
 
@@ -44,6 +45,7 @@ def generate():
     half_offsets   = {int(k): float(v) for k, v in raw_half.items() if v is not None}
     padding_before = float(data.get("padding_before", 5))
     padding_after  = float(data.get("padding_after", 10))
+    max_clip_after = float(data.get("max_clip_after", 15))
     video_duration = data.get("video_duration")
 
     if not filename:
@@ -61,6 +63,7 @@ def generate():
         clock_map=clock_map,
         padding_before=padding_before,
         padding_after=padding_after,
+        max_clip_after=max_clip_after,
         video_duration=float(video_duration) if video_duration else None,
         all_events=all_events,
     )

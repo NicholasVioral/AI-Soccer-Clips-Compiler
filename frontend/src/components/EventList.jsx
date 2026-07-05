@@ -128,19 +128,32 @@ export default function EventList({ events, currentTime, toVideoTime, isSynced, 
     return bestId;
   }, [filtered, currentTime, toVideoTime, calibrated]);
 
-  // Ref map: eventId → DOM node, so we can scroll the active row into view
+  // Ref map: eventId → DOM node, so we can keep the active row in view
   const rowRefs = useRef({});
   const setRowRef = useCallback((id, node) => {
     if (node) rowRefs.current[id] = node;
     else delete rowRefs.current[id];
   }, []);
 
+  // Scroll container for the list. We scroll ONLY this element to follow the
+  // active event — never element.scrollIntoView(), which walks up and scrolls
+  // the whole page (yanking the video out of view during playback).
+  const listRef = useRef(null);
+
   useEffect(() => {
-    if (activeEventId && rowRefs.current[activeEventId]) {
-      rowRefs.current[activeEventId].scrollIntoView({
-        block: "nearest",
-        behavior: "smooth",
-      });
+    const container = listRef.current;
+    const row = activeEventId ? rowRefs.current[activeEventId] : null;
+    if (!container || !row) return;
+
+    const cRect = container.getBoundingClientRect();
+    const rRect = row.getBoundingClientRect();
+
+    // Only adjust the container's own scroll, and only when the row is actually
+    // outside the visible area, so a visible active row causes no movement.
+    if (rRect.top < cRect.top) {
+      container.scrollTop -= cRect.top - rRect.top;
+    } else if (rRect.bottom > cRect.bottom) {
+      container.scrollTop += rRect.bottom - cRect.bottom;
     }
   }, [activeEventId]);
 
@@ -222,7 +235,7 @@ export default function EventList({ events, currentTime, toVideoTime, isSynced, 
       </div>
 
       {/* ── Scrollable list ────────────────────────────────────────────── */}
-      <ul className={styles.list}>
+      <ul className={styles.list} ref={listRef}>
         {listItems.length === 0 && (
           <li className={styles.empty}>No events match your filters.</li>
         )}

@@ -8,6 +8,7 @@ import EventTimeline from "./components/EventTimeline";
 import PlayerHighlights from "./components/PlayerHighlights";
 import { scanClock } from "./services/api";
 import { interpolateVideoTime } from "./services/clockUtils";
+import { loadSavedOffsets, saveOffsets } from "./services/syncStore"; // SYNC PERSIST (remove to disable)
 import styles from "./App.module.css";
 
 // Scan status values
@@ -51,8 +52,10 @@ export default function App() {
                    halfOffsets[1] !== null || halfOffsets[2] !== null;
 
   const handleHalfCalibrated = useCallback((period, offset) => {
-    setHalfOffsets(prev => ({ ...prev, [period]: offset }));
-  }, []);
+    const next = { ...halfOffsets, [period]: offset };
+    setHalfOffsets(next);
+    if (videoFilename) saveOffsets(videoFilename, next); // SYNC PERSIST (remove to disable)
+  }, [halfOffsets, videoFilename]);
 
   // ── Auto-scan when a video is uploaded ──────────────────────────────────
   const startScan = useCallback(async (filename) => {
@@ -84,7 +87,8 @@ export default function App() {
     setVideoFilename(filename ?? null);
     setMatchInfo(info);
     setEvents([]);
-    setHalfOffsets({ 1: null, 2: null });
+    // SYNC PERSIST: restore saved sync for this video (remove → setHalfOffsets({ 1: null, 2: null }))
+    setHalfOffsets(filename ? loadSavedOffsets(filename) : { 1: null, 2: null });
     setClockMap(null);
     setScanStatus(SCAN_IDLE);
     setScanError(null);
@@ -194,6 +198,8 @@ export default function App() {
                   videoFilename={videoFilename}
                   duration={duration}
                   isSynced={isSynced}
+                  currentTime={currentTime}
+                  onSeek={seekTo}
                 />
               )}
             </div>

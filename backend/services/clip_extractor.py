@@ -21,6 +21,26 @@ from typing import Callable
 
 log = logging.getLogger(__name__)
 
+# Seconds of lead-in before the player receives the ball. A little pre-roll is
+# cheap insurance: if the reception isn't the exact instant they get the ball on
+# screen, we'd rather start slightly early than miss the start of the action.
+START_LEAD_IN = 1.5
+
+# Seconds to keep rolling past the event that ends the clip (the next on-screen
+# action). Small so the clip stops almost the instant the new event begins,
+# with just enough tail to avoid a jarring hard cut.
+CLIP_TAIL = 0.5
+
+# Floor so a clip still has substance when the next event lands almost
+# instantly. Deliberately small — the next event drives the real end; a large
+# floor is what makes clips overrun the action.
+MIN_CLIP_AFTER = 2.0
+
+# Events skipped when looking for "the next event" that ends a clip. "Pressure"
+# is a constant off-ball defensive annotation, not a new on-screen action — if
+# it ended clips they'd cut ~half a second in whenever a defender closes down.
+END_IGNORE_EVENTS = frozenset({"Pressure"})
+
 
 @dataclass
 class ClipSegment:
@@ -54,20 +74,23 @@ def _run(cmd: list[str]) -> None:
 
 
 def _cut_clip(video_path: str, start: float, duration: float, output_path: str) -> None:
-    # Output-side -ss (after -i) is the only reliable frame-accurate approach.
-    # FFmpeg internally does a container seek + frame-level discard, so it
-    # doesn't need to decode the entire file from the beginning, and the cut
-    # is exact regardless of keyframe positions or B-frame reordering.
-    # Input-side -ss seeks to the nearest keyframe (fast, no full decode).
-    # -c copy avoids re-encoding so even 1080p clips finish in seconds.
-    # The clip may start up to ~2s early (keyframe alignment) which is
-    # covered by the padding_before buffer.
+    # Re-encode each clip rather than stream-copy. A -c copy cut can only start
+    # on a keyframe, so cutting mid-GOP leaves the clip beginning with delta
+    # frames that reference data outside the cut — the player shows a frozen or
+    # smeared frame until the next keyframe (the "small freeze" at clip starts,
+    # and stutter at concat joins). Re-encoding forces a fresh keyframe at the
+    # exact start and gives every clip identical, clean timestamps so they join
+    # seamlessly. -ss before -i still seeks fast to the nearest keyframe; the
+    # decoder then re-encodes from the precise start, so the cut stays accurate.
     _run([
         "ffmpeg", "-y",
         "-ss", f"{max(start, 0):.3f}",
         "-i", video_path,
         "-t",  f"{max(duration, 0.5):.3f}",
-        "-c", "copy",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "160k",
+        "-avoid_negative_ts", "make_zero",
         "-movflags", "+faststart",
         output_path,
     ])
@@ -143,6 +166,19 @@ POSSESSION_EVENTS = frozenset({
     "Dribbled Past", "Miscontrol",
 })
 
+# On-ball actions by the clipped player — used to find where their run began so
+# a dribble/carry up the field before a shot is kept in the clip.
+ON_BALL_EVENTS = frozenset({"Ball Receipt*", "Carry", "Dribble"})
+
+# Events that, when performed by a *different* player, mean the ball genuinely
+# changed hands, so the clip's lead-in shouldn't reach past them. Deliberately
+# excludes "Dribbled Past" and "Duel": those are logged for the beaten defender
+# *during* a dribble and must not cut the attacker's run short.
+POSSESSION_CHANGE_EVENTS = frozenset({
+    "Ball Receipt*", "Carry", "Dribble", "Pass", "Shot",
+    "Miscontrol", "Goal Keeper", "Interception", "Clearance", "Ball Recovery",
+})
+
 
 def _to_video_time(
     match_s: float,
@@ -182,6 +218,7 @@ def events_to_segments(
     video_duration: float | None = None,
     clock_map: list[dict] | None = None,
     all_events: list[dict] | None = None,
+    max_clip_after: float = 15.0,
 ) -> list[ClipSegment]:
     """
     Convert StatsBomb events → ClipSegments using context-aware boundaries.
@@ -191,10 +228,18 @@ def events_to_segments(
     Pressure). Stops scanning when another player's possession event is found.
     Falls back to padding_before if no Ball Receipt* is found.
 
-    Clip end varies by event type:
-      Pass   → next Ball Receipt* (any player) + 2 s  (see where ball lands)
-      Shot   → padding_after minimum to see the outcome
-      Others → first possession event by a different player + 1 s, or padding_after
+    Clip end: stop CLIP_TAIL seconds after the first event that follows the
+    clipped one, so the clip cuts the moment a new action begins (a shot's save,
+    the next player on the ball, etc.). Off-ball "Pressure" annotations are
+    ignored. A short MIN_CLIP_AFTER floor covers the case where that next event
+    is nearly instantaneous. ``padding_after`` is retained for API compatibility
+    but no longer sets the end.
+
+    The clip end is hard-capped at ``max_clip_after`` seconds past the event.
+    In open play the next action is only a second or two away, so a large gap to
+    the "next action" means the ball went dead (corner, penalty, throw-in, foul,
+    injury). Without this cap those clips would run until the restart is taken —
+    often 20–40 s later. Capping keeps the clip to the play itself.
     """
     sorted_all = sorted(all_events or [], key=lambda e: e.get("match_seconds") or 0)
 
@@ -213,77 +258,108 @@ def events_to_segments(
         if video_duration is not None and video_time > video_duration:
             continue
 
-        # ── Clip start: Ball Receipt* that began this possession ──────────────
+        # ── Clip start: begin when the player receives the ball ───────────────
+        # Walk back to the player's most recent Ball Receipt* — the moment they
+        # actually received the ball to start this attacking move — so the whole
+        # take-on/run into the event is included. Carries/Dribbles by the player
+        # and off-ball events by others (Pressure, Duel, "Dribbled Past") are
+        # skipped; the earliest on-ball touch is a fallback if no reception is
+        # logged (e.g. the ball was won via a tackle). The scan is bounded by the
+        # possession id when available, else by another player genuinely taking
+        # the ball, plus the period boundary and a lookback cap.
+        #
+        # Shots look back further and rely on the possession id to bound the run,
+        # so a defender's touch during the dribble (a failed interception, say)
+        # can't abort the search before it reaches the reception.
         possession_start_match_s = None
+        this_possession = e.get("possession")
+        is_shot  = etype == "Shot"
+        lookback = 120.0 if is_shot else 60.0
         if player and sorted_all:
             for past in reversed(sorted_all):
                 pms = past.get("match_seconds") or 0
                 if pms >= match_s:
                     continue
-                if pms < match_s - 60:          # never look back more than 60 s
+                if pms < match_s - lookback:
                     break
                 if past.get("period") != period:
+                    break
+                # Stay inside the event's possession when the id is available.
+                ppos = past.get("possession")
+                if this_possession is not None and ppos is not None and ppos != this_possession:
                     break
                 ptype   = past.get("type", "")
                 pplayer = past.get("player")
                 if pplayer == player:
+                    if ptype in ON_BALL_EVENTS:
+                        possession_start_match_s = pms   # earliest touch so far
                     if ptype == "Ball Receipt*":
-                        possession_start_match_s = pms
-                        break                    # found the possession start
+                        break                    # reception found — run starts here
                     # Carry / Dribble by same player → keep scanning back
-                elif ptype in POSSESSION_EVENTS:
-                    # Another player's possession event → our player got ball after it
-                    break
-                # else: non-possession event by another player (Pressure, Foul…) → skip
+                elif ptype in POSSESSION_CHANGE_EVENTS:
+                    # Another player genuinely had the ball. When we have a
+                    # possession id the id-change above is the real boundary, so
+                    # don't abort here (the defender's touch is inside this
+                    # possession); only stop on the id heuristic when it's absent.
+                    if this_possession is None:
+                        break
+                # else: other player's non-possession event (Pressure, Duel,
+                # Dribbled Past, Block, Foul…) → skip, keep scanning back
 
         if possession_start_match_s is not None:
             start_vt = _to_video_time(possession_start_match_s, clock_map, half_offsets, period)
-            # 1 s lead-in so the incoming ball is visible
-            start = max(0.0, (start_vt if start_vt is not None else video_time) - 1.0)
+            # Small lead-in so the incoming ball is visible before the reception.
+            start = max(0.0, (start_vt if start_vt is not None else video_time) - START_LEAD_IN)
         else:
             start = max(0.0, video_time - padding_before)
 
-        # ── Clip end: context-aware per event type ────────────────────────────
-        possession_end_match_s = None
-        if player and sorted_all:
-            for future in sorted_all:
-                fms = future.get("match_seconds") or 0
-                if fms <= match_s:
-                    continue
-                if fms > match_s + 60:          # safety cap
-                    break
-                ftype   = future.get("type", "")
-                fplayer = future.get("player")
+        # ── Clip end: stop the moment the next action begins ──────────────────
+        # End a hair after the first event that follows the clipped one, so the
+        # clip cuts as soon as a new action starts (a shot's save, the next
+        # player touching the ball, etc.). Off-ball "Pressure" annotations are
+        # skipped so a defender closing down doesn't end the clip early.
+        next_event_match_s = None
+        for future in sorted_all:
+            fms = future.get("match_seconds") or 0
+            if fms <= match_s:
+                continue
+            if future.get("period") != period:
+                break
+            if fms > match_s + max_clip_after:
+                break
+            if future.get("type", "") in END_IGNORE_EVENTS:
+                continue
+            next_event_match_s = fms
+            break
 
-                if etype == "Pass":
-                    # End when the next player receives the ball
-                    if ftype == "Ball Receipt*":
-                        possession_end_match_s = fms + 2
-                        break
-                elif etype == "Shot":
-                    # End when keeper acts or next player receives
-                    if ftype in ("Ball Receipt*", "Goal Keeper") and fplayer != player:
-                        possession_end_match_s = fms + 2
-                        break
-                else:
-                    # Generic: end at first possession event by a different player
-                    if fplayer != player and ftype in POSSESSION_EVENTS:
-                        possession_end_match_s = fms + 1
-                        break
+        # Minimum duration floor — just enough that the clip has substance when
+        # the next event lands almost instantly (e.g. a shot the keeper catches
+        # within a second). Keep it small or clips overrun the action.
+        min_end = video_time + MIN_CLIP_AFTER
 
-        # Minimum duration floor (so clips aren't impossibly short)
-        if etype == "Shot":
-            min_end = video_time + padding_after   # must see whether it goes in
-        elif etype == "Pass":
-            min_end = video_time + 3.0             # at least 3 s past the kick
-        else:
-            min_end = video_time + padding_after
-
-        if possession_end_match_s is not None:
-            end_vt = _to_video_time(possession_end_match_s, clock_map, half_offsets, period)
-            end = max(min_end, end_vt if end_vt is not None else min_end)
+        if next_event_match_s is not None:
+            end_vt = _to_video_time(next_event_match_s, clock_map, half_offsets, period)
+            end = max(min_end, (end_vt + CLIP_TAIL) if end_vt is not None else min_end)
         else:
             end = min_end
+
+        # Hard cap: never run more than max_clip_after past the event. A far-off
+        # "next action" is a dead-ball stoppage (corner/penalty/throw-in), not a
+        # continuation of play — don't stretch the clip to the restart. Keep the
+        # per-event floor (min_end) so e.g. a Shot still shows its outcome.
+        end = min(end, max(min_end, video_time + max_clip_after))
+
+        # Manual override: the user pinned this event to a specific video time
+        # (the automatic sync was off for it). Shift the whole clip so it lands
+        # there, preserving the reception lead-in and tail around the event.
+        override = e.get("video_time_override")
+        if override is not None:
+            try:
+                delta = float(override) - video_time
+                start = max(0.0, start + delta)
+                end = end + delta
+            except (TypeError, ValueError):
+                pass
 
         if video_duration is not None:
             end = min(end, video_duration)

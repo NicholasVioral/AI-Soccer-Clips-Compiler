@@ -1,6 +1,23 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { generateClips, API_URL } from "../services/api";
+import { loadOverrides, saveOverrides, parseVideoTime } from "../services/clipOverrides";
 import styles from "./PlayerHighlights.module.css";
+
+// Clips begin a few seconds before the event; the end is determined by the
+// backend's possession analysis (subsequent events), so these are just the
+// start offset and a minimum-duration floor — no longer user-configurable.
+const PADDING_BEFORE = 5;
+const PADDING_AFTER  = 10;
+
+// Seconds of run-up to include when seeking to an event, so playback starts
+// before the action rather than landing mid-move. Used by the ▶ jump button
+// and autoplay review.
+const SEEK_LEAD_IN = 4;
+
+// Autoplay review: how much of the video to play around each event before
+// advancing to the next one.
+const PREVIEW_BEFORE = SEEK_LEAD_IN;  // start this many seconds before the event
+const PREVIEW_AFTER  = 5;             // advance this many seconds after the event
 
 const CLIP_EVENT_TYPES = new Set([
   "Shot", "Dribble", "Foul Committed", "Foul Won",
@@ -36,6 +53,80 @@ function fmtVideoTime(seconds) {
   return `${sign}${m}:${String(s).padStart(2, "0")}`;
 }
 
+// Editable video-time for one event. Shows the automatic time, but lets the
+// user override it (type a M:SS time, or capture the current playhead) when the
+// sync is off for that event. ▶ jumps there; ↺ resets to automatic.
+function TimeCell({ eventId, computedVt, override, outOfRange, currentTime, onSetOverride, onSeek }) {
+  const hasOverride = override != null;
+  const effective   = hasOverride ? override : computedVt;
+  const [draft, setDraft]     = useState(effective != null ? fmtVideoTime(effective) : "");
+  const [editing, setEditing] = useState(false);
+
+  // Resync the field when the value changes from outside (reset, set-to-
+  // playhead, sync change) — but never while the user is mid-edit.
+  useEffect(() => {
+    if (!editing) setDraft(effective != null ? fmtVideoTime(effective) : "");
+  }, [effective, editing]);
+
+  const commit = () => {
+    setEditing(false);
+    const parsed = parseVideoTime(draft);
+    if (parsed == null) {
+      setDraft(effective != null ? fmtVideoTime(effective) : "");
+      return;
+    }
+    // Matching the automatic time means "no override".
+    if (computedVt != null && Math.abs(parsed - computedVt) < 0.5) {
+      onSetOverride(eventId, null);
+    } else {
+      onSetOverride(eventId, parsed);
+    }
+  };
+
+  return (
+    <div className={styles.timeCell} onClick={(ev) => ev.stopPropagation()}>
+      <input
+        className={`${styles.timeInput} ${hasOverride ? styles.timeInputOverride : ""} ${outOfRange ? styles.timeInputWarn : ""}`}
+        value={draft}
+        onChange={(ev) => setDraft(ev.target.value)}
+        onFocus={() => setEditing(true)}
+        onBlur={commit}
+        onKeyDown={(ev) => {
+          if (ev.key === "Enter") ev.currentTarget.blur();
+          if (ev.key === "Escape") {
+            setDraft(effective != null ? fmtVideoTime(effective) : "");
+            setEditing(false);
+            ev.currentTarget.blur();
+          }
+        }}
+        title={
+          hasOverride
+            ? "Manually set video time — ↺ resets to automatic"
+            : outOfRange
+            ? "This time falls outside the video's duration"
+            : "Video time — edit, or use ⌖ to pin the current playhead"
+        }
+        spellCheck={false}
+      />
+      {currentTime != null && (
+        <button type="button" className={styles.timeBtn}
+          title="Set to current video position"
+          onClick={() => onSetOverride(eventId, currentTime)}>⌖</button>
+      )}
+      {onSeek && effective != null && (
+        <button type="button" className={styles.timeBtn}
+          title="Play from a few seconds before this event"
+          onClick={() => onSeek(Math.max(0, effective - SEEK_LEAD_IN))}>▶</button>
+      )}
+      {hasOverride && (
+        <button type="button" className={styles.timeBtn}
+          title="Reset to automatic time"
+          onClick={() => onSetOverride(eventId, null)}>↺</button>
+      )}
+    </div>
+  );
+}
+
 export default function PlayerHighlights({
   events,
   toVideoTime,
@@ -44,16 +135,42 @@ export default function PlayerHighlights({
   videoFilename,
   duration,
   isSynced,
+  currentTime,
+  onSeek,
 }) {
   const [selectedPlayer, setSelectedPlayer] = useState("");
   const [typeFilter, setTypeFilter]         = useState("all");
   const [selected, setSelected]             = useState(new Set());
-  const [paddingBefore, setPaddingBefore]   = useState(5);
-  const [paddingAfter, setPaddingAfter]     = useState(10);
   const [generating, setGenerating]         = useState(false);
   const [progress, setProgress]             = useState(null); // "3 / 12 clips"
   const [clipId, setClipId]                 = useState(null);
   const [error, setError]                   = useState(null);
+
+  // Per-event manual video-time overrides (persisted per video). When the
+  // automatic sync is off for a specific event, the user pins its correct video
+  // time here and the whole clip is shifted to land there.
+  const [overrides, setOverrides] = useState(() => loadOverrides(videoFilename));
+
+  useEffect(() => {
+    setOverrides(loadOverrides(videoFilename));
+  }, [videoFilename]);
+
+  const setOverride = useCallback((eventId, seconds) => {
+    setOverrides((prev) => {
+      const next = { ...prev };
+      if (seconds == null) delete next[eventId];
+      else next[eventId] = seconds;
+      saveOverrides(videoFilename, next);
+      return next;
+    });
+  }, [videoFilename]);
+
+  // ── Autoplay review ────────────────────────────────────────────────────────
+  // Play through the visible events one by one so you can eyeball each and mark
+  // the good ones. previewIndex is the index into playerEvents currently
+  // playing, or null when not reviewing.
+  const [previewIndex, setPreviewIndex] = useState(null);
+  const previewSeekRef = useRef({ awaiting: false, start: 0 });
 
   // ── Derived data ──────────────────────────────────────────────────────────
 
@@ -101,11 +218,24 @@ export default function PlayerHighlights({
     });
   }, []);
 
+  // "Select all" / "Deselect all" act on the currently visible events (the
+  // active type filter) and merge into the existing selection, so selecting
+  // all in one category doesn't wipe out choices made in another.
   const selectAll = useCallback(() => {
-    setSelected(new Set(playerEvents.map((e) => e.id)));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const e of playerEvents) next.add(e.id);
+      return next;
+    });
   }, [playerEvents]);
 
-  const deselectAll = useCallback(() => setSelected(new Set()), []);
+  const deselectAll = useCallback(() => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const e of playerEvents) next.delete(e.id);
+      return next;
+    });
+  }, [playerEvents]);
 
   // When player changes, auto-select their shots/dribbles/key events
   const handlePlayerChange = useCallback((name) => {
@@ -120,7 +250,64 @@ export default function PlayerHighlights({
         .map((e) => e.id)
     );
     setSelected(autoSelected);
+    setPreviewIndex(null);
   }, [events]);
+
+  // Effective video time for an event (manual override wins over auto sync).
+  const videoTimeOf = useCallback((e) => {
+    const ov = overrides[e.id];
+    return ov != null ? ov : toVideoTime(e.match_seconds ?? 0, e.period ?? 1);
+  }, [overrides, toVideoTime]);
+
+  const startPreview = useCallback(() => {
+    if (!playerEvents.length) return;
+    setClipId(null);
+    setPreviewIndex(0);
+  }, [playerEvents]);
+
+  const stopPreview  = useCallback(() => setPreviewIndex(null), []);
+  const previewPrev  = useCallback(() => setPreviewIndex((i) => (i == null ? null : Math.max(0, i - 1))), []);
+  const previewNext  = useCallback(
+    () => setPreviewIndex((i) => (i != null && i + 1 < playerEvents.length ? i + 1 : null)),
+    [playerEvents]
+  );
+
+  const markCurrentGood = useCallback(() => {
+    const e = previewIndex != null ? playerEvents[previewIndex] : null;
+    if (e) setSelected((prev) => new Set(prev).add(e.id));
+  }, [previewIndex, playerEvents]);
+
+  // Seek to the current preview event's lead-in whenever the index changes.
+  useEffect(() => {
+    if (previewIndex == null) return;
+    const e = playerEvents[previewIndex];
+    if (!e) { setPreviewIndex(null); return; }
+    const vt = videoTimeOf(e);
+    if (vt == null) { setPreviewIndex(null); return; }
+    const start = Math.max(0, vt - PREVIEW_BEFORE);
+    previewSeekRef.current = { awaiting: true, start };
+    onSeek?.(start);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewIndex]);
+
+  // Advance to the next event once the current one's window has played out.
+  useEffect(() => {
+    if (previewIndex == null || currentTime == null) return;
+    const e = playerEvents[previewIndex];
+    if (!e) return;
+    const vt = videoTimeOf(e);
+    if (vt == null) return;
+    const st = previewSeekRef.current;
+    if (st.awaiting) {
+      // Don't advance until the seek has actually landed near the start.
+      if (currentTime <= st.start + 1.5) st.awaiting = false;
+      return;
+    }
+    if (currentTime >= vt + PREVIEW_AFTER) {
+      setPreviewIndex((i) => (i != null && i + 1 < playerEvents.length ? i + 1 : null));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTime, previewIndex]);
 
   // ── Generate ──────────────────────────────────────────────────────────────
 
@@ -131,7 +318,14 @@ export default function PlayerHighlights({
     setClipId(null);
     setProgress(`0 / ${selected.size} clips`);
 
-    const chosenEvents = events.filter((e) => selected.has(e.id));
+    // Attach any manual video-time override so the backend shifts that clip.
+    const chosenEvents = events
+      .filter((e) => selected.has(e.id))
+      .map((e) =>
+        overrides[e.id] != null
+          ? { ...e, video_time_override: overrides[e.id] }
+          : e
+      );
 
     try {
       const { data } = await generateClips({
@@ -140,8 +334,8 @@ export default function PlayerHighlights({
         all_events:     events,
         clock_map:      clockMap ?? undefined,
         half_offsets:   halfOffsets ?? undefined,
-        padding_before: paddingBefore,
-        padding_after:  paddingAfter,
+        padding_before: PADDING_BEFORE,
+        padding_after:  PADDING_AFTER,
         video_duration: duration || undefined,
       });
       setClipId(data.clip_id);
@@ -153,7 +347,7 @@ export default function PlayerHighlights({
     } finally {
       setGenerating(false);
     }
-  }, [selected, events, videoFilename, clockMap, halfOffsets, paddingBefore, paddingAfter, duration]);
+  }, [selected, events, overrides, videoFilename, clockMap, halfOffsets, duration]);
 
   const downloadUrl = clipId ? `${API_URL}/api/clips/${clipId}` : null;
 
@@ -207,19 +401,51 @@ export default function PlayerHighlights({
             </span>
             <button className={styles.textBtn} onClick={selectAll}>Select all</button>
             <button className={styles.textBtn} onClick={deselectAll}>Deselect all</button>
+            <button
+              className={styles.textBtn}
+              onClick={startPreview}
+              disabled={!playerEvents.length || !isSynced}
+              title={!isSynced ? "Waiting for clock sync" : "Play through each event to review them"}
+            >
+              ▶ Autoplay ({playerEvents.length})
+            </button>
           </div>
+
+          {/* ── Autoplay review bar ─────────────────────────────────────── */}
+          {previewIndex != null && playerEvents[previewIndex] && (
+            <div className={styles.previewBar}>
+              <span className={styles.previewInfo}>
+                Reviewing {previewIndex + 1}/{playerEvents.length}
+                {" · "}
+                {fmtClock(playerEvents[previewIndex].minute, playerEvents[previewIndex].second)}
+              </span>
+              <button className={styles.previewBtn} onClick={previewPrev} title="Previous">⏮</button>
+              <button className={styles.previewBtn} onClick={previewNext} title="Next">⏭</button>
+              <button
+                className={`${styles.previewBtn} ${selected.has(playerEvents[previewIndex].id) ? styles.previewGoodOn : styles.previewGood}`}
+                onClick={markCurrentGood}
+                title="Mark this one good (adds to selection)"
+              >
+                {selected.has(playerEvents[previewIndex].id) ? "✓ Selected" : "✓ Good"}
+              </button>
+              <button className={styles.previewBtn} onClick={stopPreview} title="Stop autoplay">✕</button>
+            </div>
+          )}
 
           {/* ── Event list ──────────────────────────────────────────────── */}
           <ul className={styles.eventList}>
-            {playerEvents.map((e) => {
+            {playerEvents.map((e, idx) => {
               const isChecked = selected.has(e.id);
-              const vt        = toVideoTime(e.match_seconds ?? 0, e.period ?? 1);
-              const outOfRange = vt !== null && (vt < 0 || (duration && vt > duration));
+              const isPreviewing = idx === previewIndex;
+              const computedVt = toVideoTime(e.match_seconds ?? 0, e.period ?? 1);
+              const override   = overrides[e.id];
+              const effectiveVt = override != null ? override : computedVt;
+              const outOfRange = effectiveVt != null && (effectiveVt < 0 || (duration && effectiveVt > duration));
               const period1   = e.period === 1;
               return (
                 <li
                   key={e.id}
-                  className={`${styles.eventRow} ${isChecked ? styles.eventRowChecked : ""} ${outOfRange ? styles.eventRowWarn : ""}`}
+                  className={`${styles.eventRow} ${isChecked ? styles.eventRowChecked : ""} ${outOfRange ? styles.eventRowWarn : ""} ${isPreviewing ? styles.eventRowPreviewing : ""}`}
                   onClick={() => toggleEvent(e.id)}
                 >
                   <input
@@ -250,10 +476,15 @@ export default function PlayerHighlights({
                     )}
                   </div>
                   {isSynced && (
-                    <span className={outOfRange ? styles.videoTimeWarn : styles.videoTime}
-                      title={outOfRange ? "This event falls outside your video's duration" : undefined}>
-                      {outOfRange ? "⚠ " : ""}{fmtVideoTime(vt)}
-                    </span>
+                    <TimeCell
+                      eventId={e.id}
+                      computedVt={computedVt}
+                      override={override}
+                      outOfRange={outOfRange}
+                      currentTime={currentTime}
+                      onSetOverride={setOverride}
+                      onSeek={onSeek}
+                    />
                   )}
                 </li>
               );
@@ -262,29 +493,6 @@ export default function PlayerHighlights({
               <li className={styles.empty}>No events for this filter.</li>
             )}
           </ul>
-
-          {/* ── Clip padding ────────────────────────────────────────────── */}
-          <div className={styles.paddingRow}>
-            <label className={styles.label}>Clip padding</label>
-            <div className={styles.paddingControls}>
-              <span className={styles.paddingLabel}>before</span>
-              <input
-                type="number" min="0" max="30" step="1"
-                className={styles.paddingInput}
-                value={paddingBefore}
-                onChange={(e) => setPaddingBefore(Number(e.target.value))}
-              />
-              <span className={styles.paddingLabel}>s</span>
-              <span className={styles.paddingLabel} style={{ marginLeft: "0.75rem" }}>after</span>
-              <input
-                type="number" min="1" max="60" step="1"
-                className={styles.paddingInput}
-                value={paddingAfter}
-                onChange={(e) => setPaddingAfter(Number(e.target.value))}
-              />
-              <span className={styles.paddingLabel}>s</span>
-            </div>
-          </div>
 
           {/* ── Generate button ─────────────────────────────────────────── */}
           {error && <p className={styles.error}>{error}</p>}

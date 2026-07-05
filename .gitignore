@@ -19,6 +19,7 @@ backend/clips/
 # Environment
 .env
 *.env
+footballia.net_cookies.txt
 
 # Node
 frontend/node_modules/

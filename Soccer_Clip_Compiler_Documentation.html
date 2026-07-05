@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Soccer Clip Compiler — Complete Project Documentation</title>
+</head>
+<body>
+
+<h1>Soccer Clip Compiler — Complete Project Documentation</h1>
+<p><em>A full-stack web application that automatically generates soccer highlight reels from broadcast match footage.</em></p>
+<p><strong>Repository:</strong> NicholasVioral/AI-Soccer-Clips-Compiler &nbsp;•&nbsp; <strong>Author:</strong> Nicholas Vioral &nbsp;•&nbsp; <strong>Document generated:</strong> 2026-06-24</p>
+
+<hr>
+
+<h2>1. One-Paragraph Summary</h2>
+<p>Soccer Clip Compiler lets you upload a recording of a soccer match, automatically match it against StatsBomb's professional event dataset, sync the video's clock to real match time, browse every on-ball moment in the game, and export a single compiled MP4 of exactly the plays you care about — in seconds. It bridges a gap between two worlds: StatsBomb publishes detailed, free, frame-by-frame event data for real matches (every pass, shot, dribble, carry), and broadcast video has all the footage — but the two don't share a clock. This app's core engineering job is to align them, then use the event data as a "table of contents" for the video.</p>
+
+<h2>2. What It Does — End-to-End Workflow</h2>
+<ol>
+<li><strong>Upload a match video</strong> — drag-and-drop, or select a file already sitting on the server (this bypasses browser/proxy upload limits for very large 1080p files that can be tens of GB).</li>
+<li><strong>Auto-identify the match</strong> — OCR reads the scoreboard from sampled video frames to detect the team names, and/or the filename is parsed; the detected teams are fuzzy-matched against the StatsBomb open dataset.</li>
+<li><strong>Sync events to the video</strong> — the user marks the kickoff moment for each half independently, giving the app a precise video-to-match-time offset per half that correctly handles the halftime break. (An automatic OCR clock-scan path also exists.)</li>
+<li><strong>Browse every event</strong> — the full StatsBomb event stream (roughly 3,500+ events per match) loads into a filterable, searchable list and a seekable dot timeline. Click any event to jump the video to that exact moment.</li>
+<li><strong>Select and generate clips</strong> — pick a player and the event types you want (shots, passes, dribbles, etc.), set padding, and hit Generate.</li>
+<li><strong>Download</strong> — a single compiled highlight MP4 arrives in seconds.</li>
+</ol>
+
+<h3>Smart Clip Boundaries</h3>
+<p>Clips are not a fixed time window around an event. The app analyzes the full event stream to find natural <em>possession</em> boundaries:</p>
+<ul>
+<li><strong>Clip start</strong> — scans backward to find the <code>Ball Receipt*</code> event that began the player's current possession, so the clip opens when the ball arrives at their feet, not seconds into their run.</li>
+<li><strong>Clip end</strong>, which varies by event type:
+  <ul>
+  <li><strong>Pass</strong> → ends when the next player receives the ball + 2&nbsp;s (you see the full pass and where it lands).</li>
+  <li><strong>Shot</strong> → keeps a 10&nbsp;s minimum so the outcome (goal/save/miss) is always visible.</li>
+  <li><strong>Other events</strong> → end at the first possession event by a different player + 1&nbsp;s.</li>
+  </ul>
+</li>
+</ul>
+
+<h2>3. Technology Stack</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+<tr><th>Layer</th><th>Technology</th></tr>
+<tr><td>Frontend</td><td>React 18, Vite 5, CSS Modules, Axios</td></tr>
+<tr><td>Backend</td><td>Python 3.11/3.12, Flask 3, Werkzeug, Gunicorn (production WSGI)</td></tr>
+<tr><td>Soccer data</td><td>StatsBomb open data via <code>statsbombpy</code>, pandas (DataFrame cleanup), requests</td></tr>
+<tr><td>Computer vision / OCR</td><td>OpenCV (<code>opencv-python-headless</code>), Tesseract OCR via <code>pytesseract</code></td></tr>
+<tr><td>Video processing</td><td>FFmpeg — stream copy (<code>-c copy</code>), concat demuxer, HTTP range-request streaming</td></tr>
+<tr><td>Fuzzy matching</td><td><code>rapidfuzz</code> for team-name matching ("MAN CITY" → "Manchester City")</td></tr>
+<tr><td>API design</td><td>REST; Flask blueprints; flask-cors; Vite dev proxy</td></tr>
+<tr><td>Deployment</td><td>Render (backend, Docker, free tier) + Vercel (frontend, planned)</td></tr>
+</table>
+
+<p><strong>Exact Python dependencies</strong> (<code>backend/requirements.txt</code>): flask 3.0.3, flask-cors 4.0.1, werkzeug 3.0.3, python-dotenv 1.0.1, gunicorn 22.0.0, statsbombpy 1.17.0, requests 2.32.3, rapidfuzz 3.9.1, opencv-python-headless, pytesseract.</p>
+<p><strong>Exact Node dependencies</strong> (<code>frontend/package.json</code>): react ^18.3.1, react-dom ^18.3.1, axios ^1.7.2; dev: vite ^5.3.4, @vitejs/plugin-react ^4.3.1.</p>
+
+<h2>4. Architecture</h2>
+
+<h3>Backend (<code>backend/</code>)</h3>
+<pre>
+backend/
+├── app.py                  # Flask app, CORS config, blueprint registration
+├── Dockerfile              # python:3.11-slim + ffmpeg + tesseract, gunicorn launch
+├── requirements.txt
+├── routes/
+│   ├── upload.py           # Video upload, server-file list/registration, streaming
+│   ├── statsbomb.py        # Competitions, matches, match search, events, summary
+│   ├── clips.py            # Clip generation + download + ffmpeg health check
+│   └── video.py            # Broadcast clock OCR scan endpoint
+└── services/
+    ├── clip_extractor.py   # Core: events_to_segments() + generate_highlight_reel()
+    ├── clock_scanner.py    # OCR-based clock map builder + interpolation
+    ├── ocr_engine.py       # Frame extraction + Tesseract OCR preprocessing
+    ├── statsbomb_client.py # statsbombpy wrapper + caching + fuzzy search
+    └── video_analyzer.py   # Scoreboard OCR + filename parsing for auto-ID
+</pre>
+
+<p><strong><code>app.py</code></strong> — Creates the Flask app, registers four blueprints all under the <code>/api</code> prefix, sets a 2&nbsp;GB max upload size, and creates the <code>uploads/</code> and <code>clips/</code> folders on startup. CORS is locked to a single origin read from the <code>FRONTEND_URL</code> environment variable (falls back to <code>http://localhost:3000</code> for local dev) so the production domain is never hardcoded. The dev server runs with <code>use_reloader=False</code> to stop Werkzeug's file watcher from constantly restarting when it sees changes in large site-packages installs.</p>
+
+<p><strong>Clip generation pipeline (<code>clip_extractor.py</code>):</strong></p>
+<ol>
+<li>For each selected event, <code>_to_video_time()</code> converts match seconds → video seconds using either the OCR clock map (linear interpolation, with up-to-10-minute extrapolation past the last reading) or the per-half manual offset keyed by <code>event.period</code>.</li>
+<li>Scan backward through all events to find the <code>Ball Receipt*</code> that opened this possession (clip start), skipping non-possession events (Pressure, Foul) by other players and stopping at another player's possession event. Never looks back more than 60&nbsp;s.</li>
+<li>Scan forward to find the natural clip end based on event type (Pass vs Shot vs other), with a minimum-duration floor.</li>
+<li>FFmpeg cuts each segment. Each clip is cut with output-side <code>-ss</code> after <code>-i</code> for frame accuracy plus <code>-c copy</code> for no re-encoding, and <code>-movflags +faststart</code>.</li>
+<li>FFmpeg concatenates all segments into one MP4 via the concat demuxer. Overlapping/adjacent segments are merged first so the reel has no duplicate footage.</li>
+</ol>
+<p>A <code>POSSESSION_EVENTS</code> frozenset (Ball Receipt*, Carry, Dribble, Shot, Pass, Goal Keeper, Dribbled Past, Miscontrol) distinguishes possession from non-possession events during the backward/forward scans.</p>
+
+<p><strong>Broadcast clock scanner (<code>clock_scanner.py</code> + <code>ocr_engine.py</code>):</strong></p>
+<ol>
+<li>Samples ~8 probe frames and tries three horizontal crop regions (top-left, top-center, top-right) to auto-detect where the broadcast clock lives — broadcasters place it differently.</li>
+<li>Samples the detected region roughly every 15&nbsp;s across the full video.</li>
+<li>Runs Tesseract OCR with multiple preprocessing variants (grayscale, inverted, contrast-boosted) on each frame.</li>
+<li>Parses an <code>MM:SS</code> regex — handles added time (e.g. <code>90+3</code>) and the "frozen 90:00" some broadcasts show after full time.</li>
+<li>Outputs a <code>clock_map</code>: a list of <code>{match_seconds, video_seconds}</code> pairs used for linear interpolation everywhere downstream.</li>
+</ol>
+
+<h3>Frontend (<code>frontend/src/</code>)</h3>
+<pre>
+frontend/src/
+├── App.jsx                 # Root state, toVideoTime(), isSynced flag
+├── index.jsx
+├── App.module.css          # Global dark-dashboard theme
+├── components/
+│   ├── UploadForm.jsx          # Drag-drop upload + server file picker
+│   ├── KickoffCalibrator.jsx   # Per-half manual sync (1st half / 2nd half)
+│   ├── VideoPlayer.jsx         # HTML5 &lt;video&gt; with range-request streaming
+│   ├── EventTimeline.jsx       # Seekable dot timeline for all events
+│   ├── EventList.jsx           # Filterable, searchable event list
+│   ├── MatchSelector.jsx       # Match search + confidence-ranked results
+│   └── PlayerHighlights.jsx    # Player/type filter + clip generation
+└── services/
+    ├── api.js              # Axios instance + all API calls, VITE_API_URL base
+    └── clockUtils.js       # Linear interpolation for the clock map
+</pre>
+<p>The <code>toVideoTime(matchSeconds, period)</code> function in <code>App.jsx</code> is the single source of truth for converting match time to video time. Every component — timeline, event list, clip generator — calls it. When the clock map is available it interpolates; otherwise it falls back to the per-half manual offset. Centralizing this (along with the <code>isSynced</code> flag) eliminated an entire class of "why does the timeline show different times than the event list?" bugs.</p>
+
+<h2>5. REST API Reference</h2>
+<p>All routes are served under <code>/api</code>.</p>
+<table border="1" cellpadding="6" cellspacing="0">
+<tr><th>Method &amp; Path</th><th>Purpose</th></tr>
+<tr><td>GET /api/competitions</td><td>All StatsBomb open-data competitions, sorted by name.</td></tr>
+<tr><td>GET /api/matches?competition_id=&amp;season_id=</td><td>All matches for a competition + season.</td></tr>
+<tr><td>GET /api/search-matches?team=&amp;competition=</td><td>Fuzzy search matches by team and/or competition name (legacy <code>?q=</code> treated as team). Sorted by date desc.</td></tr>
+<tr><td>GET /api/events?match_id=</td><td>Full event stream in chronological order; each event carries id, index, type, period, minute, second, match_seconds, team, player, position, location, play_pattern, under_pressure, duration, and type-specific sub-objects.</td></tr>
+<tr><td>GET /api/events/summary?match_id=</td><td>Aggregate team stats (shots, goals, pass accuracy) without the full list.</td></tr>
+<tr><td>POST /api/upload</td><td>Multipart video upload (mp4/mkv/avi/mov/webm); runs auto-ID; returns filename + match_info.</td></tr>
+<tr><td>GET /api/upload/list</td><td>Filenames already present in the uploads folder.</td></tr>
+<tr><td>POST /api/upload/register</td><td>Register a file already in uploads (no transfer) — the large-file workaround.</td></tr>
+<tr><td>GET /api/video/stream/&lt;filename&gt;</td><td>Stream a video with HTTP range-request support (seekable playback).</td></tr>
+<tr><td>POST /api/clips/generate</td><td>Build segments from selected events + sync info and produce one highlight MP4; returns clip_id + clip_count.</td></tr>
+<tr><td>GET /api/clips/&lt;clip_id&gt;</td><td>Download a generated reel (path-traversal-guarded to <code>highlights_*.mp4</code>).</td></tr>
+<tr><td>GET /api/clips/check</td><td>Health check — reports whether ffmpeg is available on PATH.</td></tr>
+<tr><td>POST (video.py) clock scan</td><td>Run the OCR broadcast-clock scan and return a clock_map.</td></tr>
+</table>
+
+<h2>6. The Core Engineering Challenges</h2>
+
+<h3>6.1 The Sync Problem (the heart of the project)</h3>
+<p>StatsBomb gives match timestamps (minutes/seconds into the game). A broadcast video has its own clock — it starts at 00:00 when you press record, not when the referee blows the whistle. Aligning the two was the central problem.</p>
+<ul>
+<li><strong>First approach — single kickoff offset:</strong> measure how many seconds into the video the match starts, add that to every event. Worked for the first half, broke completely for the second, because broadcasts include a variable-length halftime break that one offset can't model.</li>
+<li><strong>Solution — per-half calibration:</strong> the user marks the kickoff moment for each half independently, giving two offsets. <code>event.period</code> selects which one to apply.</li>
+<li><strong>More ambitious — OCR automatic sync:</strong> sample frames every 15&nbsp;s, read the on-screen clock with Tesseract, build a full <code>match_time → video_time</code> lookup table that even survives replays and broadcast cuts. Production-readiness required auto-detecting the scoreboard region, multiple OCR preprocessing variants, added-time/frozen-clock handling, and extrapolation into stoppage time. In practice the manual per-half sync remains the more reliable default; auto-OCR scan was made opt-in.</li>
+</ul>
+
+<h3>6.2 Large File Handling</h3>
+<p>A full-match 1080p recording can be tens of GB, exceeding browser and proxy upload limits. The solution: a server-side file registration endpoint (<code>POST /api/upload/register</code>) — drop the file directly into the uploads folder, tell the app the filename, and it registers it with zero data transfer, plus a file-picker UI listing what's already on the server.</p>
+
+<h3>6.3 Clip Quality</h3>
+<p>The original fixed <code>padding_before</code>/<code>padding_after</code> approach produced clips that were technically correct but hollow — too much build-up and post-event dead air. The possession-boundary algorithm (scan back for Ball Receipt*, scan forward for the next possession event) gives clips a clear narrative shape: the ball arrives, the action happens, the ball leaves.</p>
+
+<h3>6.4 FFmpeg Performance</h3>
+<p>Switching from re-encoding (<code>libx264 ultrafast</code>) to stream copy (<code>-c copy</code>) cut clip generation from several minutes to under ~5&nbsp;s for 1080p footage. The trade-off is that input-side seeks land on keyframe boundaries; the possession-start padding hides any early-cut artifacts, while output-side <code>-ss</code> is used where frame accuracy matters.</p>
+
+<h2>7. Complete Development History (commit by commit)</h2>
+<p>The project is six commits on <code>main</code>. Below is every commit, newest last, with what changed and why.</p>
+
+<h3>f36bddf — Initial commit: Soccer Clip Compiler (2026-04-11)</h3>
+<p>The entire first version landed in one commit: ~7,367 lines across 38 files. React + Flask app that uploads a match video, fetches StatsBomb open-data events, auto-syncs via broadcast-clock OCR scanning, and generates downloadable highlight reels clipped around player events. Included the full backend (app.py, routes for upload/statsbomb/clips/video, and services clip_extractor/clock_scanner/ocr_engine/statsbomb_client/video_analyzer) and the full React frontend (App + UploadForm, KickoffCalibrator, MatchSelector, EventList, EventTimeline, PlayerHighlights, VideoPlayer, plus api.js and clockUtils.js). Built with Vite from the start. <em>Co-authored by Claude Sonnet 4.6.</em></p>
+
+<h3>9abd45b — Per-half manual sync, server file picker, clip quality fixes (2026-04-13)</h3>
+<ul>
+<li>Replaced the single kickoff offset with <strong>per-half offsets (1H/2H)</strong> so full-match videos with halftime breaks sync correctly.</li>
+<li>Added <code>/upload/list</code> and <code>/upload/register</code> endpoints to use files already in the uploads folder without re-uploading, plus a <strong>server file-picker UI</strong> in UploadForm.</li>
+<li>Switched FFmpeg to input-side <code>-ss</code> + <code>-c copy</code> for near-instant clips.</li>
+<li>Fixed clip end time to always guarantee the <code>padding_after</code> minimum so shots/goals are never cut before the outcome.</li>
+<li>Disabled the automatic OCR scan; <strong>manual calibration became the default flow.</strong></li>
+</ul>
+<p>This commit heavily rewrote <code>KickoffCalibrator.jsx</code> (~384 lines changed). <em>Co-authored by Claude Sonnet 4.6.</em></p>
+
+<h3>5fa63d1 — Context-aware possession clip boundaries (2026-04-14)</h3>
+<ul>
+<li><strong>Clip start:</strong> scan backward for the <code>Ball Receipt*</code> that began the player's current possession, skipping non-possession events (Pressure, Fouls) by other players; fall back to <code>padding_before</code> if none found.</li>
+<li><strong>Clip end by event type:</strong> Pass → next Ball Receipt* (+2&nbsp;s); Shot → padding_after floor so the outcome is visible; Others → first possession event by a different player (+1&nbsp;s).</li>
+<li>Added the <code>POSSESSION_EVENTS</code> frozenset.</li>
+</ul>
+<p>This eliminated the "too long with no meaning" problem — clips now capture the exact possession sequence (receive → carry → pass → land). <em>Co-authored by Claude Sonnet 4.6.</em></p>
+
+<h3>d0f9d6b — Restyle UI to modern dark dashboard aesthetic (2026-04-14)</h3>
+<ul>
+<li>Background darkened to <code>#0b0c14</code> (near-black with a subtle blue tint); card surfaces to <code>#13141f</code> with rgba borders and inset highlights.</li>
+<li>Primary accent shifted from teal (<code>#4ecca3</code>) to purple (<code>#7c5cfc</code>) for interactive elements; action buttons got a purple gradient with glow.</li>
+<li>Teal retained exclusively for confirmed/success states (synced offset, success messages, high-confidence OCR badge).</li>
+<li>Unified border-radii (14px cards, 8px inputs/chips), font smoothing, themed scrollbars, and a refreshed text palette (<code>#f0f0f8</code> / <code>#8b8da8</code> / <code>#4e4f6b</code>).</li>
+</ul>
+<p>Touched nine CSS module files. <em>Co-authored by Claude Sonnet 4.6.</em></p>
+
+<h3>603ac3a — Add comprehensive README (2026-04-29)</h3>
+<p>193-line README covering overview, tech stack, architecture, build process, lessons learned, and the improvement roadmap. <em>Co-authored by Claude Sonnet 4.6.</em></p>
+
+<h3>ce7acb6 — Prepare app for Render + Vercel deployment (2026-06-23)</h3>
+<ul>
+<li>Added <code>gunicorn</code> and a <code>Dockerfile</code> (installs ffmpeg + tesseract via apt) for Render.</li>
+<li>Locked CORS to the <code>FRONTEND_URL</code> env var with a localhost dev fallback.</li>
+<li>Routed all frontend API calls through a <code>VITE_API_URL</code> base URL.</li>
+<li>Added <code>render.yaml</code> blueprint pinning Python 3.11.</li>
+</ul>
+<p><em>Co-authored by Claude Opus 4.8.</em></p>
+
+<h2>8. Deployment Status</h2>
+<p><strong>Backend — live.</strong> Deployed on Render (Docker, free tier) at <code>https://ai-soccer-clips-compiler.onrender.com</code> (service ID <code>srv-d8tjbg77f7vs73f62vd0</code>). Verified: <code>GET /api/clips/check</code> → <code>{"ffmpeg_available":true}</code>. The root <code>/</code> 404s because only <code>/api/*</code> routes exist. It was created as a manual Web Service (not a Blueprint), so it ignores <code>render.yaml</code>; the Dockerfile path was set in the dashboard to <code>./backend/Dockerfile</code> with build context <code>./backend</code>. Free tier sleeps after ~15&nbsp;min idle (~50&nbsp;s cold start) and has an ephemeral disk (uploads/clips don't survive a restart). Gunicorn runs with 2 workers and a 600&nbsp;s timeout so long OCR scans aren't killed.</p>
+<p><strong>Frontend — pending.</strong> Plan: deploy the React/Vite app to Vercel — import the repo, set Root Directory = <code>frontend</code>, set <code>VITE_API_URL=https://ai-soccer-clips-compiler.onrender.com</code>, deploy.</p>
+<p><strong>CORS loop — pending.</strong> Once Vercel issues a URL, set the <code>FRONTEND_URL</code> env var on Render to that URL (currently unset → falls back to localhost:3000, which would block the real frontend).</p>
+<p><strong>Demo video.</strong> A full match (Portugal–Spain 2018, ~99.8&nbsp;min) was downloaded via yt-dlp to <code>backend/uploads/portugal_spain_2018.mp4</code>. It came out AV1 (741&nbsp;MB) because the YouTube JS-challenge solver wasn't available, so it was being transcoded to H.264 (<code>ffmpeg -c:v libx264 -crf 23 -c:a aac</code>) → <code>portugal_spain_2018_h264.mp4</code> so OpenCV can decode it reliably. (Status to verify: that the transcode completed and the AV1 original was removed.)</p>
+
+<h2>9. What I Learned</h2>
+<ul>
+<li><strong>FFmpeg stream copy is massively underrated</strong> — <code>-c copy</code> took clip generation from minutes to seconds; keyframe-boundary cuts are hidden by possession-start padding.</li>
+<li><strong>OCR on broadcast video is harder than it looks</strong> — fonts vary by broadcaster, scoreboards animate, overlays corrupt pixels, and the clock can sit in three different positions. Robustness needed multiple crop regions, preprocessing variants, and regex patterns — and even then, manual sync is the more reliable production path.</li>
+<li><strong>Event-driven sports data has real semantic structure</strong> — StatsBomb events form a possession graph (Ball Receipt* → Carry → Pass → Ball Receipt*). Treating it as a graph and scanning along it makes natural clip boundaries emerge from the data instead of arbitrary padding.</li>
+<li><strong>React state architecture matters early</strong> — centralizing <code>toVideoTime()</code> and <code>isSynced</code> in <code>App.jsx</code> killed a whole class of time-mismatch bugs.</li>
+<li><strong>Scope creep is real</strong> — the project grew from "cut a clip at a timestamp" to OCR clock scanning, per-half sync, server file registration, smart possession boundaries, and a full event timeline; each feature had to integrate carefully with the sync pipeline.</li>
+</ul>
+
+<h2>10. How It Could Be Improved (Roadmap)</h2>
+<p><strong>Accuracy:</strong> train a small object-detection model to locate the scoreboard reliably (kill the multi-region probing); use optical flow on the video itself as a second signal for possession boundaries; auto-detect kickoff via the center-circle ball-placement frame.</p>
+<p><strong>Features:</strong> support multiple video files per match (route clips by <code>event.period</code>); clip preview/thumbnails before export; custom clip ordering; team color-coding + filter on the timeline; one-click export presets ("Shot compilation", "Key passes", "Full press sequence").</p>
+<p><strong>Scale:</strong> move generation to a Celery/Redis background queue with WebSocket progress; database-backed sessions (SQLite/Postgres) so users can save and return; cloud storage (S3) for uploads and clips.</p>
+<p><strong>Data:</strong> integrate Wyscout or Opta to go beyond StatsBomb's curated competitions; let users tag custom moments ("tactical foul", "press trigger") as first-class events.</p>
+
+<h2>11. Running Locally</h2>
+<p><strong>Requirements:</strong> Python 3.12+, Node 18+, FFmpeg on PATH, Tesseract OCR (optional, for auto-sync).</p>
+<pre>
+# Backend
+cd backend
+pip install -r requirements.txt
+python app.py
+
+# Frontend (separate terminal)
+cd frontend
+npm install
+npm run dev
+</pre>
+<p>Open <code>http://localhost:5173</code>. The Vite dev server proxies <code>/api</code> requests to Flask on port 5000.</p>
+<p><strong>FFmpeg:</strong> Windows <code>winget install ffmpeg</code> · macOS <code>brew install ffmpeg</code> · Linux <code>apt-get install ffmpeg</code>.<br>
+<strong>Tesseract (optional):</strong> Windows <code>winget install UB-Mannheim.TesseractOCR</code> · macOS <code>brew install tesseract</code> · Linux <code>apt-get install tesseract-ocr</code>.</p>
+
+<h2>12. Data &amp; Licensing</h2>
+<p>Uses <a href="https://github.com/statsbomb/open-data">StatsBomb open data</a>, freely available under the StatsBomb Open Data Licence. No API key is required. The <code>statsbombpy</code> client wraps it; results are cached (~30-min TTL) and DataFrame output is cleaned into JSON-friendly event objects.</p>
+
+<hr>
+<p><em>This document was assembled from the project's README, full git history, source files, and project notes.</em></p>
+
+</body>
+</html>
