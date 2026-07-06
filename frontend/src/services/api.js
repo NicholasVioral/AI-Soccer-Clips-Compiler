@@ -37,7 +37,44 @@ export const generateClips = (payload) =>
 
 export const checkFfmpeg = () => api.get("/clips/check");
 
+// ── External clips (YouTube etc.) ──────────────────────────────────────────
+// Downloading a section can take a while over the network, so allow 5 min.
+export const addExternalClip = ({ url, start, end, label }) =>
+  api.post("/external-clips", { url, start, end, label }, { timeout: 300_000 });
+
+export const deleteExternalClip = (id) => api.delete(`/external-clips/${id}`);
+
+export const checkExternalClips = () => api.get("/external-clips/check");
+
+// Direct URL for previewing / <video src> — bypasses axios.
+export const externalClipUrl = (id) => `${API_URL}/api/external-clips/${id}`;
+
 export const scanClock = (filename) =>
   api.post("/video/scan-clock", { filename }, { timeout: 300_000 }); // 5-min timeout
 
 export const checkScanAvailable = () => api.get("/video/scan-check");
+
+// Register a file already sitting in the uploads folder (e.g. one downloaded
+// from Footballia) so the app can load it. Returns { filename, match_info }.
+export const registerServerVideo = (filename) =>
+  api.post("/upload/register", { filename });
+
+// ── Footballia integration ─────────────────────────────────────────────────
+export const checkFootballia = () => api.get("/footballia/check");
+
+export const searchFootballiaTeams = (name) =>
+  api.get("/footballia/search-teams", { params: { name } });
+
+export const listFootballiaMatches = (slug, page = 1) =>
+  api.get("/footballia/matches", { params: { slug, page } });
+
+// All of a team's matches plus the distinct seasons/competitions for filtering.
+// Fetches every page server-side (cached), so allow a longer timeout.
+export const listFootballiaAllMatches = (slug) =>
+  api.get("/footballia/all-matches", { params: { slug }, timeout: 60_000 });
+
+export const startFootballiaDownload = (matchUrl, title) =>
+  api.post("/footballia/download", { match_url: matchUrl, title });
+
+export const footballiaDownloadStatus = (jobId) =>
+  api.get(`/footballia/download/${jobId}`);

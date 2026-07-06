@@ -5,6 +5,7 @@ from services.clip_extractor import (
     generate_highlight_reel,
     ffmpeg_available,
 )
+from services.external_clips import clip_path as external_clip_path, valid_clip_id
 
 clips_bp = Blueprint("clips", __name__)
 
@@ -47,11 +48,15 @@ def generate():
     padding_after  = float(data.get("padding_after", 10))
     max_clip_after = float(data.get("max_clip_after", 15))
     video_duration = data.get("video_duration")
+    # External clips (e.g. a YouTube celebration) to splice into the reel, in
+    # the order given. Each entry is an id from POST /api/external-clips.
+    external_ids   = data.get("external_clips") or []
+    external_placement = data.get("external_placement", "end")
 
     if not filename:
         return jsonify({"error": "filename is required"}), 400
-    if not events:
-        return jsonify({"error": "events list is empty"}), 400
+    if not events and not external_ids:
+        return jsonify({"error": "Select at least one event or external clip"}), 400
 
     video_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
     if not os.path.isfile(video_path):
@@ -68,21 +73,34 @@ def generate():
         all_events=all_events,
     )
 
-    if not segments:
-        return jsonify({"error": "No valid segments could be built from the provided events"}), 400
+    # Resolve external clip ids to stored file paths (skip unknown/invalid ids).
+    external_dir = current_app.config["EXTERNAL_FOLDER"]
+    external_paths = []
+    for cid in external_ids:
+        if isinstance(cid, str) and valid_clip_id(cid):
+            p = external_clip_path(external_dir, cid)
+            if os.path.isfile(p):
+                external_paths.append(p)
+
+    if not segments and not external_paths:
+        return jsonify({"error": "No valid clips could be built from the provided input"}), 400
 
     clips_dir = current_app.config["CLIPS_FOLDER"]
     os.makedirs(clips_dir, exist_ok=True)
 
     try:
-        output_path = generate_highlight_reel(video_path, segments, clips_dir)
+        output_path = generate_highlight_reel(
+            video_path, segments, clips_dir,
+            external_clips=external_paths,
+            external_placement=external_placement,
+        )
     except RuntimeError as exc:
         return jsonify({"error": str(exc)}), 500
 
     clip_id = os.path.basename(output_path)
     return jsonify({
         "clip_id":     clip_id,
-        "clip_count":  len(segments),
+        "clip_count":  len(segments) + len(external_paths),
     }), 200
 
 

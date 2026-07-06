@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { generateClips, API_URL } from "../services/api";
 import { loadOverrides, saveOverrides, parseVideoTime } from "../services/clipOverrides";
+import ExternalClips from "./ExternalClips";
 import styles from "./PlayerHighlights.module.css";
 
 // Clips begin a few seconds before the event; the end is determined by the
@@ -145,6 +146,11 @@ export default function PlayerHighlights({
   const [progress, setProgress]             = useState(null); // "3 / 12 clips"
   const [clipId, setClipId]                 = useState(null);
   const [error, setError]                   = useState(null);
+
+  // External clips (e.g. a YouTube celebration) to splice into the reel, in a
+  // manually-ordered list, plus where they go relative to the event clips.
+  const [externalClips, setExternalClips]     = useState([]);
+  const [externalPlacement, setExternalPlacement] = useState("end");
 
   // Per-event manual video-time overrides (persisted per video). When the
   // automatic sync is off for a specific event, the user pins its correct video
@@ -312,11 +318,12 @@ export default function PlayerHighlights({
   // ── Generate ──────────────────────────────────────────────────────────────
 
   const handleGenerate = useCallback(async () => {
-    if (!selected.size || !videoFilename) return;
+    const totalCount = selected.size + externalClips.length;
+    if (!totalCount || !videoFilename) return;
     setGenerating(true);
     setError(null);
     setClipId(null);
-    setProgress(`0 / ${selected.size} clips`);
+    setProgress(`0 / ${totalCount} clips`);
 
     // Attach any manual video-time override so the backend shifts that clip.
     const chosenEvents = events
@@ -329,14 +336,16 @@ export default function PlayerHighlights({
 
     try {
       const { data } = await generateClips({
-        filename:       videoFilename,
-        events:         chosenEvents,
-        all_events:     events,
-        clock_map:      clockMap ?? undefined,
-        half_offsets:   halfOffsets ?? undefined,
-        padding_before: PADDING_BEFORE,
-        padding_after:  PADDING_AFTER,
-        video_duration: duration || undefined,
+        filename:           videoFilename,
+        events:             chosenEvents,
+        all_events:         events,
+        clock_map:          clockMap ?? undefined,
+        half_offsets:       halfOffsets ?? undefined,
+        padding_before:     PADDING_BEFORE,
+        padding_after:      PADDING_AFTER,
+        video_duration:     duration || undefined,
+        external_clips:     externalClips.map((c) => c.id),
+        external_placement: externalPlacement,
       });
       setClipId(data.clip_id);
       setProgress(`${data.clip_count} clips compiled`);
@@ -347,7 +356,8 @@ export default function PlayerHighlights({
     } finally {
       setGenerating(false);
     }
-  }, [selected, events, overrides, videoFilename, clockMap, halfOffsets, duration]);
+  }, [selected, events, overrides, videoFilename, clockMap, halfOffsets,
+      duration, externalClips, externalPlacement]);
 
   const downloadUrl = clipId ? `${API_URL}/api/clips/${clipId}` : null;
 
@@ -494,19 +504,36 @@ export default function PlayerHighlights({
             )}
           </ul>
 
+          {/* ── External clips (YouTube celebrations etc.) ──────────────── */}
+          <ExternalClips
+            clips={externalClips}
+            setClips={setExternalClips}
+            placement={externalPlacement}
+            setPlacement={setExternalPlacement}
+          />
+
           {/* ── Generate button ─────────────────────────────────────────── */}
           {error && <p className={styles.error}>{error}</p>}
 
-          {!clipId ? (
+          {(() => {
+            const totalCount = selected.size + externalClips.length;
+            // Event clips need clock sync to be placed; external clips don't.
+            // Allow generation when there are external clips even if unsynced,
+            // or when events are selected and the video is synced.
+            const eventsBlocked = selected.size > 0 && !isSynced;
+            const canGenerate =
+              !!videoFilename && totalCount > 0 &&
+              (externalClips.length > 0 ? true : !eventsBlocked);
+            return !clipId ? (
             <button
               className={styles.generateBtn}
               onClick={handleGenerate}
-              disabled={generating || !selected.size || !videoFilename || !isSynced}
+              disabled={generating || !canGenerate}
               title={
-                !isSynced
-                  ? "Waiting for clock sync"
-                  : !videoFilename
+                !videoFilename
                   ? "No video uploaded"
+                  : eventsBlocked && !externalClips.length
+                  ? "Waiting for clock sync"
                   : ""
               }
             >
@@ -516,7 +543,7 @@ export default function PlayerHighlights({
                   {progress ?? "Generating…"}
                 </>
               ) : (
-                `Generate ${selected.size} clip${selected.size !== 1 ? "s" : ""}`
+                `Generate ${totalCount} clip${totalCount !== 1 ? "s" : ""}`
               )}
             </button>
           ) : (
@@ -536,9 +563,10 @@ export default function PlayerHighlights({
                 Generate again
               </button>
             </div>
-          )}
+          );
+          })()}
 
-          {!isSynced && (
+          {!isSynced && selected.size > 0 && !externalClips.length && (
             <p className={styles.hint}>Waiting for clock sync to enable clip generation.</p>
           )}
         </>

@@ -1,0 +1,253 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding: 0.9rem 0 0.2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.headerRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: 0.75rem;
+  color: #7c5cfc;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.count {
+  font-size: 0.7rem;
+  color: #4e4f6b;
+}
+
+.hint {
+  font-size: 0.72rem;
+  color: #6b6c85;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.input,
+.timeInput,
+.labelInput {
+  background: #0f101d;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  color: #f0f0f8;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.6rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input:focus,
+.timeInput:focus,
+.labelInput:focus {
+  border-color: #7c5cfc;
+}
+
+.input {
+  width: 100%;
+}
+
+.timeRow {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.timeInput {
+  width: 5.5rem;
+  flex: 0 0 auto;
+}
+
+.dash {
+  color: #4e4f6b;
+}
+
+.labelInput {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.addBtn {
+  align-self: flex-start;
+  background: #1c1d2e;
+  border: 1px solid rgba(124, 92, 252, 0.4);
+  color: #b9a6ff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.4rem 0.9rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.addBtn:hover:not(:disabled) {
+  background: #23243a;
+  border-color: #7c5cfc;
+}
+
+.addBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.error {
+  font-size: 0.72rem;
+  color: #ff6b6b;
+  margin: 0;
+}
+
+/* ── Clip list ─────────────────────────────────────────────────────────── */
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #0f101d;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 0.35rem 0.5rem;
+}
+
+.order {
+  font-size: 0.7rem;
+  color: #4e4f6b;
+  width: 1rem;
+  text-align: center;
+  flex: 0 0 auto;
+}
+
+.itemMain {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.itemLabel {
+  font-size: 0.8rem;
+  color: #f0f0f8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.itemMeta {
+  font-size: 0.68rem;
+  color: #6b6c85;
+}
+
+.itemBtns {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+
+.iconBtn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #b6b7c9;
+  font-size: 0.72rem;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.iconBtn:hover:not(:disabled) {
+  background: #23243a;
+  color: #fff;
+}
+
+.iconBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.removeBtn:hover:not(:disabled) {
+  color: #ff6b6b;
+  border-color: rgba(255, 107, 107, 0.4);
+}
+
+.previewVideo {
+  width: 100%;
+  border-radius: 8px;
+  background: #000;
+  max-height: 240px;
+}
+
+/* ── Placement ─────────────────────────────────────────────────────────── */
+.placementRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.placementLabel {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #4e4f6b;
+}
+
+.placementChips {
+  display: flex;
+  gap: 4px;
+}
+
+.placementChip {
+  background: #0f101d;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: #b6b7c9;
+  font-size: 0.72rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.placementChip:hover {
+  background: #23243a;
+}
+
+.placementChipActive {
+  background: #7c5cfc;
+  border-color: #7c5cfc;
+  color: #fff;
+}
+
+/* ── Spinner (matches PlayerHighlights) ────────────────────────────────── */
+.spinner {
+  width: 0.85rem;
+  height: 0.85rem;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #b9a6ff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

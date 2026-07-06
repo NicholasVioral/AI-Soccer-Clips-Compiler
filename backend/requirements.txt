@@ -18,3 +18,8 @@ rapidfuzz==3.9.1
 # ── Video frame extraction + OCR ─────────────────────────────────────────────
 opencv-python-headless
 pytesseract
+
+# ── External clip download (YouTube, etc.) ───────────────────────────────────
+# Invoked as `python -m yt_dlp` to fetch a time-range from an online video and
+# splice it into the reel. Requires ffmpeg on PATH (already needed for clips).
+yt-dlp

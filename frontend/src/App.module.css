@@ -52,6 +52,27 @@
   font-weight: 700;
 }
 
+/* ── "or download from Footballia" divider ─────────────────────────────── */
+.orDivider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  gap: 0.7rem;
+  margin: 1rem 0;
+  color: #4e4f6b;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.orDivider::before,
+.orDivider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 /* ── Workspace (two-column layout after upload) ─────────────────────────── */
 .workspace {
   display: grid;

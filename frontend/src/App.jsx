@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import UploadForm from "./components/UploadForm";
+import FootballiaSearch from "./components/FootballiaSearch";
 import MatchSelector from "./components/MatchSelector";
 import VideoPlayer from "./components/VideoPlayer";
 import KickoffCalibrator from "./components/KickoffCalibrator";
@@ -122,6 +123,8 @@ export default function App() {
         <section className={styles.card}>
           <h2>1. Upload Video</h2>
           <UploadForm onVideoUploaded={handleVideoUploaded} />
+          <div className={styles.orDivider}><span>or download from Footballia</span></div>
+          <FootballiaSearch onVideoUploaded={handleVideoUploaded} />
         </section>
 
         {videoUrl && (

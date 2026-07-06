@@ -1,0 +1,241 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.unavailable {
+  font-size: 0.8rem;
+  color: #8a8ba3;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.unavailable code {
+  background: #0f101d;
+  padding: 0.05rem 0.3rem;
+  border-radius: 4px;
+  color: #b9a6ff;
+  font-size: 0.75rem;
+}
+
+/* ── Search ─────────────────────────────────────────────────────────────── */
+.searchRow {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.input {
+  flex: 1 1 auto;
+  background: #0f101d;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  color: #f0f0f8;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.7rem;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.input:focus {
+  border-color: #7c5cfc;
+}
+
+.clearBtn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #b6b7c9;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.clearBtn:hover {
+  background: #23243a;
+  color: #fff;
+}
+
+/* ── Team suggestions ───────────────────────────────────────────────────── */
+.teamList {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  background: #0f101d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.teamBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: #f0f0f8;
+  font-size: 0.83rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.teamBtn:hover {
+  background: #23243a;
+}
+
+.logo {
+  width: 1.1rem;
+  height: 1.1rem;
+  object-fit: contain;
+}
+
+.hint {
+  font-size: 0.76rem;
+  color: #6b6c85;
+  margin: 0.2rem 0;
+}
+
+/* ── Download progress ──────────────────────────────────────────────────── */
+.downloadBox {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  background: #0f101d;
+  border: 1px solid rgba(124, 92, 252, 0.3);
+  border-radius: 8px;
+  padding: 0.6rem 0.7rem;
+}
+
+.downloadLabel {
+  font-size: 0.78rem;
+  color: #b9a6ff;
+}
+
+.progressBar {
+  height: 6px;
+  background: #23243a;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, #7c5cfc, #a78bfa);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.error {
+  font-size: 0.76rem;
+  color: #ff6b6b;
+  margin: 0;
+}
+
+/* ── Match list ─────────────────────────────────────────────────────────── */
+.matchesWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.matchList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.matchRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: #0f101d;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+}
+
+.matchInfo {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.matchTitle {
+  font-size: 0.82rem;
+  color: #f0f0f8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.matchMeta {
+  font-size: 0.68rem;
+  color: #6b6c85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dlBtn {
+  flex: 0 0 auto;
+  background: #1c1d2e;
+  border: 1px solid rgba(124, 92, 252, 0.4);
+  color: #b9a6ff;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.35rem 0.7rem;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.dlBtn:hover:not(:disabled) {
+  background: #23243a;
+  border-color: #7c5cfc;
+}
+
+.dlBtn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* ── Filters ────────────────────────────────────────────────────────────── */
+.filters {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.filterSelect {
+  flex: 1 1 0;
+  min-width: 0;
+  background: #0f101d;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: #f0f0f8;
+  font-size: 0.8rem;
+  padding: 0.4rem 0.5rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.filterSelect:focus {
+  border-color: #7c5cfc;
+}
+
+.resultCount {
+  font-size: 0.7rem;
+  color: #6b6c85;
+}

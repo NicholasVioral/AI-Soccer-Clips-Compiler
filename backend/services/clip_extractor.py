@@ -10,6 +10,7 @@ FFmpeg must be installed and on PATH:
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import shutil
@@ -116,19 +117,78 @@ def _concat_clips(clip_paths: list[str], output_path: str) -> None:
         os.unlink(flist_path)
 
 
+def _probe_geometry(path: str) -> tuple[int, int, float]:
+    """Return (width, height, fps) of a video's first stream."""
+    result = subprocess.run(
+        [
+            "ffprobe", "-v", "error", "-select_streams", "v:0",
+            "-show_entries", "stream=width,height,r_frame_rate",
+            "-of", "json", path,
+        ],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"ffprobe failed for {path}")
+    stream = json.loads(result.stdout.decode(errors="replace"))["streams"][0]
+    width = int(stream["width"])
+    height = int(stream["height"])
+    num, _, den = stream.get("r_frame_rate", "30/1").partition("/")
+    try:
+        fps = float(num) / float(den) if float(den) else 30.0
+    except (ValueError, ZeroDivisionError):
+        fps = 30.0
+    return width, height, (fps if fps > 0 else 30.0)
+
+
+def _normalize_clip(src: str, out: str, width: int, height: int, fps: float) -> None:
+    """
+    Re-encode ``src`` to exactly match the reel's geometry so it can be
+    concatenated with the match-video clips using a stream copy. The clip is
+    scaled to fit inside width×height (preserving aspect) and letterbox-padded,
+    with square pixels and a constant frame rate, matching the encoder settings
+    _cut_clip uses for the event clips.
+    """
+    vf = (
+        f"scale={width}:{height}:force_original_aspect_ratio=decrease,"
+        f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,setsar=1,"
+        f"fps={fps:.3f}"
+    )
+    _run([
+        "ffmpeg", "-y",
+        "-i", src,
+        "-vf", vf,
+        "-r", f"{fps:.3f}",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2",
+        "-movflags", "+faststart",
+        out,
+    ])
+
+
 def generate_highlight_reel(
     video_path: str,
     segments: list[ClipSegment],
     output_dir: str,
     on_progress: Callable[[int, int], None] | None = None,
+    external_clips: list[str] | None = None,
+    external_placement: str = "end",
 ) -> str:
     """
     Cut each segment and concatenate into one MP4.
+
+    ``external_clips`` are paths to already-downloaded clip files (e.g. a
+    YouTube celebration) to splice into the reel. They are normalized to the
+    match video's geometry so they join the event clips seamlessly, and placed
+    either before ("start") or after ("end") the event clips, keeping the order
+    they were given in.
+
     Returns the absolute path of the output file.
     """
     require_ffmpeg()
 
-    if not segments:
+    external_clips = external_clips or []
+    if not segments and not external_clips:
         raise ValueError("No segments provided.")
     if not os.path.isfile(video_path):
         raise FileNotFoundError(f"Video not found: {video_path}")
@@ -136,18 +196,43 @@ def generate_highlight_reel(
     output_path = os.path.join(output_dir, f"highlights_{uuid.uuid4().hex[:10]}.mp4")
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        clip_paths: list[str] = []
+        event_paths: list[str] = []
 
         for i, seg in enumerate(segments):
             clip_path = os.path.join(tmpdir, f"clip_{i:04d}.mp4")
             log.info("Cutting %d/%d — %s", i + 1, len(segments), seg.label)
             try:
                 _cut_clip(video_path, seg.start, seg.end - seg.start, clip_path)
-                clip_paths.append(clip_path)
+                event_paths.append(clip_path)
             except Exception as exc:
                 log.warning("Skipping clip %d: %s", i, exc)
             if on_progress:
                 on_progress(i + 1, len(segments))
+
+        # Normalize external clips to the reel's geometry (the match video's, so
+        # the event clips need no re-encode). Falls back to the first external
+        # clip's own geometry if there's no match video to key off.
+        external_paths: list[str] = []
+        if external_clips:
+            try:
+                target_w, target_h, target_fps = _probe_geometry(video_path)
+            except Exception:
+                target_w, target_h, target_fps = _probe_geometry(external_clips[0])
+            for j, src in enumerate(external_clips):
+                if not os.path.isfile(src):
+                    log.warning("External clip missing, skipping: %s", src)
+                    continue
+                norm_path = os.path.join(tmpdir, f"ext_{j:04d}.mp4")
+                try:
+                    _normalize_clip(src, norm_path, target_w, target_h, target_fps)
+                    external_paths.append(norm_path)
+                except Exception as exc:
+                    log.warning("Skipping external clip %s: %s", src, exc)
+
+        if external_placement == "start":
+            clip_paths = external_paths + event_paths
+        else:
+            clip_paths = event_paths + external_paths
 
         if not clip_paths:
             raise RuntimeError("All clip cuts failed — check video file and timestamps.")

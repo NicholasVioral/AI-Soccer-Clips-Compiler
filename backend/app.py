@@ -5,6 +5,8 @@ from routes.upload import upload_bp
 from routes.statsbomb import statsbomb_bp
 from routes.clips import clips_bp
 from routes.video import video_bp
+from routes.external import external_bp
+from routes.footballia import footballia_bp
 
 app = Flask(__name__)
 
@@ -16,15 +18,19 @@ CORS(app, resources={r"/api/*": {"origins": _frontend_url}})
 
 app.config["UPLOAD_FOLDER"] = "uploads"
 app.config["CLIPS_FOLDER"] = "clips"
+app.config["EXTERNAL_FOLDER"] = "external"
 app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024 * 1024  # 2 GB
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 os.makedirs(app.config["CLIPS_FOLDER"], exist_ok=True)
+os.makedirs(app.config["EXTERNAL_FOLDER"], exist_ok=True)
 
 app.register_blueprint(upload_bp, url_prefix="/api")
 app.register_blueprint(statsbomb_bp, url_prefix="/api")
 app.register_blueprint(clips_bp, url_prefix="/api")
 app.register_blueprint(video_bp, url_prefix="/api")
+app.register_blueprint(external_bp, url_prefix="/api")
+app.register_blueprint(footballia_bp, url_prefix="/api")
 
 if __name__ == "__main__":
     # use_reloader=False prevents the watchdog from watching site-packages

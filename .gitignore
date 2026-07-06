@@ -9,6 +9,7 @@ env/
 # Uploads & generated clips
 backend/uploads/
 backend/clips/
+backend/external/
 
 # Video files
 *.mp4
