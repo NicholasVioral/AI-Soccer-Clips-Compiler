@@ -15,6 +15,15 @@ function fmtBytes(n) {
   return `${(n / 1024 / 1024).toFixed(0)} MB`;
 }
 
+// Footballia's team autocomplete matches ONE team, so a two-team query like
+// "Argentina Belgium" or "Argentina vs Belgium" returns nothing. Split off an
+// explicit separator ("vs", "-", ",") into {first, rest} so we can search the
+// first team and use the rest as an opponent filter.
+function splitOnSeparator(q) {
+  const m = q.match(/^(.+?)\s+(?:vs\.?|versus|v\.?|[-–,])\s+(.+)$/i);
+  return m ? { first: m[1].trim(), rest: m[2].trim() } : null;
+}
+
 // Search Footballia for a team, then narrow that team's available matches by
 // season and competition, and download the full match straight into the app.
 export default function FootballiaSearch({ onVideoUploaded }) {
@@ -31,6 +40,7 @@ export default function FootballiaSearch({ onVideoUploaded }) {
   const [dataFiltered, setDataFiltered] = useState(true);
   const [seasonFilter, setSeasonFilter]           = useState("all");
   const [competitionFilter, setCompetitionFilter] = useState("all");
+  const [opponentFilter, setOpponentFilter]       = useState("");
   const [loadingMatches, setLoadingMatches] = useState(false);
 
   const [job, setJob]         = useState(null); // {status, progress, ...}
@@ -39,6 +49,8 @@ export default function FootballiaSearch({ onVideoUploaded }) {
 
   const debounceRef = useRef(null);
   const pollRef     = useRef(null);
+  // Opponent parsed from a two-team query, applied once a team is picked.
+  const pendingOpponentRef = useRef("");
 
   useEffect(() => {
     checkFootballia()
@@ -55,8 +67,30 @@ export default function FootballiaSearch({ onVideoUploaded }) {
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const { data } = await searchFootballiaTeams(query.trim());
-        setTeams(data.teams || []);
+        const q = query.trim();
+        // Prefer an explicit separator ("Argentina vs Belgium"); otherwise
+        // search the whole query first.
+        const sep = splitOnSeparator(q);
+        let term = sep ? sep.first : q;
+        let opponent = sep ? sep.rest : "";
+
+        let found = (await searchFootballiaTeams(term)).data.teams || [];
+
+        // No explicit separator but a multi-word query that found nothing —
+        // it's probably "Team Opponent" (e.g. "Argentina Belgium"). Drop
+        // trailing words one at a time and retry, treating the tail as the
+        // opponent. (Team names can be multi-word, so we can't split blindly.)
+        if (found.length === 0 && !sep && /\s/.test(q)) {
+          const words = q.split(/\s+/);
+          for (let cut = words.length - 1; cut >= 1 && found.length === 0; cut--) {
+            term = words.slice(0, cut).join(" ");
+            opponent = words.slice(cut).join(" ");
+            found = (await searchFootballiaTeams(term)).data.teams || [];
+          }
+        }
+
+        pendingOpponentRef.current = found.length ? opponent : "";
+        setTeams(found);
       } catch {
         setTeams([]);
       } finally {
@@ -89,6 +123,10 @@ export default function FootballiaSearch({ onVideoUploaded }) {
     setQuery(t.name);
     setSeasonFilter("all");
     setCompetitionFilter("all");
+    // Carry over an opponent parsed from a two-team query so the list is
+    // pre-narrowed (e.g. "Argentina Belgium" → team Argentina, opponent Belgium).
+    setOpponentFilter(pendingOpponentRef.current);
+    pendingOpponentRef.current = "";
     loadAllMatches(t.slug);
   }, [loadAllMatches]);
 
@@ -99,16 +137,19 @@ export default function FootballiaSearch({ onVideoUploaded }) {
     setSeasons([]);
     setQuery("");
     setTeams([]);
+    setOpponentFilter("");
   }, []);
 
   // ── Client-side filtering ───────────────────────────────────────────────
   const filteredMatches = useMemo(() => {
+    const opp = opponentFilter.trim().toLowerCase();
     return allMatches.filter(
       (m) =>
         (seasonFilter === "all" || m.season === seasonFilter) &&
-        (competitionFilter === "all" || m.competition === competitionFilter)
+        (competitionFilter === "all" || m.competition === competitionFilter) &&
+        (!opp || m.title.toLowerCase().includes(opp))
     );
-  }, [allMatches, seasonFilter, competitionFilter]);
+  }, [allMatches, seasonFilter, competitionFilter, opponentFilter]);
 
   // ── Download + poll ─────────────────────────────────────────────────────
   const handleDownload = useCallback(async (m) => {
@@ -175,7 +216,7 @@ export default function FootballiaSearch({ onVideoUploaded }) {
       <div className={styles.searchRow}>
         <input
           className={styles.input}
-          placeholder="Search a team (e.g. Arsenal, Real Madrid)…"
+          placeholder="Search a team (e.g. Argentina, Real Madrid)…"
           value={query}
           onChange={(e) => { setQuery(e.target.value); if (team) resetTeam(); }}
           disabled={available === null}
@@ -228,6 +269,14 @@ export default function FootballiaSearch({ onVideoUploaded }) {
           ) : (
             <>
               <div className={styles.filters}>
+                <input
+                  className={styles.input}
+                  placeholder="Filter by opponent (e.g. Belgium)"
+                  value={opponentFilter}
+                  onChange={(e) => setOpponentFilter(e.target.value)}
+                />
+              </div>
+              <div className={styles.filters}>
                 <select
                   className={styles.filterSelect}
                   value={competitionFilter}
@@ -252,7 +301,7 @@ export default function FootballiaSearch({ onVideoUploaded }) {
 
               <div className={styles.resultCount}>
                 {filteredMatches.length} match{filteredMatches.length !== 1 ? "es" : ""}
-                {(seasonFilter !== "all" || competitionFilter !== "all") &&
+                {(seasonFilter !== "all" || competitionFilter !== "all" || opponentFilter.trim()) &&
                   ` of ${allMatches.length}`}
                 {dataFiltered && " · with StatsBomb data"}
               </div>
