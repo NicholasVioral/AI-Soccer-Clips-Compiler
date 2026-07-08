@@ -74,6 +74,10 @@ def _run(cmd: list[str]) -> None:
         )
 
 
+def _is_url(source: str) -> bool:
+    return source.startswith(("http://", "https://"))
+
+
 def _cut_clip(video_path: str, start: float, duration: float, output_path: str) -> None:
     # Re-encode each clip rather than stream-copy. A -c copy cut can only start
     # on a keyframe, so cutting mid-GOP leaves the clip beginning with delta
@@ -83,8 +87,13 @@ def _cut_clip(video_path: str, start: float, duration: float, output_path: str) 
     # exact start and gives every clip identical, clean timestamps so they join
     # seamlessly. -ss before -i still seeks fast to the nearest keyframe; the
     # decoder then re-encodes from the precise start, so the cut stays accurate.
+    # HTTP sources: auto-reconnect on dropped connections so a network blip
+    # mid-cut doesn't truncate the clip. -ss before -i still seeks fast; over
+    # HTTP it's satisfied with byte-range requests instead of file seeks.
+    net_flags = ["-reconnect", "1", "-reconnect_streamed", "1"] if _is_url(video_path) else []
     _run([
         "ffmpeg", "-y",
+        *net_flags,
         "-ss", f"{max(start, 0):.3f}",
         "-i", video_path,
         "-t",  f"{max(duration, 0.5):.3f}",
@@ -190,7 +199,7 @@ def generate_highlight_reel(
     external_clips = external_clips or []
     if not segments and not external_clips:
         raise ValueError("No segments provided.")
-    if not os.path.isfile(video_path):
+    if not _is_url(video_path) and not os.path.isfile(video_path):
         raise FileNotFoundError(f"Video not found: {video_path}")
 
     output_path = os.path.join(output_dir, f"highlights_{uuid.uuid4().hex[:10]}.mp4")

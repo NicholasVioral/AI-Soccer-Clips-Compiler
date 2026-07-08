@@ -1,6 +1,7 @@
 import os
 from flask import Blueprint, request, jsonify, current_app
 from services.clock_scanner import scan_video_clock, scan_available, debug_frames
+from services.video_sources import resolve_source
 
 video_bp = Blueprint("video", __name__)
 
@@ -32,8 +33,9 @@ def scan_clock():
     if not filename:
         return jsonify({"error": "filename is required"}), 400
 
-    video_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-    if not os.path.isfile(video_path):
+    # Local path or hosting URL — OpenCV's VideoCapture reads HTTP directly.
+    video_path = resolve_source(current_app.config["UPLOAD_FOLDER"], filename)
+    if video_path is None:
         return jsonify({"error": f"Video not found: {filename}"}), 404
 
     try:
@@ -66,8 +68,8 @@ def scan_debug():
     filename   = data.get("filename", "")
     timestamps = data.get("timestamps", [10, 30, 60, 120, 300, 600, 900, 1200])
 
-    video_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-    if not os.path.isfile(video_path):
+    video_path = resolve_source(current_app.config["UPLOAD_FOLDER"], filename)
+    if video_path is None:
         return jsonify({"error": f"Video not found: {filename}"}), 404
 
     try:

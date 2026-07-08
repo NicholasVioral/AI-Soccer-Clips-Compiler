@@ -20,7 +20,9 @@ export default function UploadForm({ onVideoUploaded }) {
     setUploading(true);
     try {
       const { data } = await api.post("/upload/register", { filename });
-      const videoUrl = `${API_URL}/api/video/stream/${filename}`;
+      // Remotely hosted videos stream straight from their host (video_url);
+      // local server files go through the backend's stream endpoint.
+      const videoUrl = data.video_url ?? `${API_URL}/api/video/stream/${filename}`;
       onVideoUploaded(videoUrl, data.match_info, data.filename);
     } catch (err) {
       setError(err.response?.data?.error ?? "Failed to register file.");

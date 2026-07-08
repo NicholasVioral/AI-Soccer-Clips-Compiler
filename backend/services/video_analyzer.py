@@ -75,6 +75,12 @@ def _analyze_ocr(file_path: str) -> dict:
     Run the OCR engine.  Returns a safe dict even if OCR is unavailable
     or raises an exception.
     """
+    # Remote sources (HTTP URLs) skip OCR — sampling frames from a ~1 GB video
+    # over the network to OCR a scoreboard is impractical on the deployed
+    # instance. Filename parsing still runs and the user can search manually.
+    if not os.path.isfile(file_path):
+        return {"teams": [], "confidence": 0.0, "raw_text": None, "backend": "none"}
+
     try:
         from services.ocr_engine import detect_teams_from_video
         result = detect_teams_from_video(file_path)

@@ -1,7 +1,8 @@
 import os
-from flask import Blueprint, request, jsonify, current_app, send_file, Response
+from flask import Blueprint, request, jsonify, current_app, send_file, redirect
 from werkzeug.utils import secure_filename
 from services.video_analyzer import analyze_video
+from services.video_sources import list_videos, remote_manifest, resolve_source, is_url
 
 upload_bp = Blueprint("upload", __name__)
 
@@ -14,39 +15,48 @@ def allowed_file(filename):
 
 @upload_bp.route("/upload/list", methods=["GET"])
 def list_uploads():
-    """Return filenames already in the uploads folder."""
+    """Return selectable videos: local uploads plus remotely hosted matches."""
     folder = current_app.config["UPLOAD_FOLDER"]
-    files  = [f for f in os.listdir(folder)
-              if os.path.isfile(os.path.join(folder, f)) and allowed_file(f)]
-    return jsonify({"files": sorted(files)}), 200
+    return jsonify({"files": list_videos(folder, allowed_file)}), 200
 
 
 @upload_bp.route("/video/stream/<path:filename>", methods=["GET"])
 def stream_video(filename):
-    """Stream a video from the uploads folder with range-request support."""
+    """Stream a local video with range-request support; redirect to the
+    hosting URL for videos that live off-server."""
     path = os.path.join(current_app.config["UPLOAD_FOLDER"], secure_filename(filename))
-    if not os.path.isfile(path):
-        return jsonify({"error": "Not found"}), 404
-    return send_file(path, mimetype="video/mp4", conditional=True)
+    if os.path.isfile(path):
+        return send_file(path, mimetype="video/mp4", conditional=True)
+    url = remote_manifest().get(filename)
+    if url:
+        return redirect(url, code=302)
+    return jsonify({"error": "Not found"}), 404
 
 
 @upload_bp.route("/upload/register", methods=["POST"])
 def register_video():
-    """Register a video that's already in the uploads folder — no file transfer needed."""
+    """Register a known video (local uploads folder or remote manifest) —
+    no file transfer needed."""
     data     = request.get_json(force=True)
     filename = data.get("filename", "")
     if not filename:
         return jsonify({"error": "filename is required"}), 400
 
-    save_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-    if not os.path.isfile(save_path):
-        return jsonify({"error": f"File not found in uploads: {filename}"}), 404
+    source = resolve_source(current_app.config["UPLOAD_FOLDER"], filename)
+    if source is None:
+        return jsonify({"error": f"Unknown video: {filename}"}), 404
 
-    match_info = analyze_video(save_path, filename)
+    # For remote sources analyze_video sees a URL, skips OCR (not a local
+    # file) and falls back to filename parsing — exactly what we want, since
+    # OCR-ing a remote 1 GB video on the deployed instance is impractical.
+    match_info = analyze_video(source, filename)
     return jsonify({
         "message": "Video registered",
         "filename": filename,
         "match_info": match_info,
+        # Direct playback URL: remote videos stream straight from the host
+        # (no proxying through this server); local ones go via /video/stream.
+        "video_url": source if is_url(source) else None,
     }), 200
 
 

@@ -6,6 +6,7 @@ from services.clip_extractor import (
     ffmpeg_available,
 )
 from services.external_clips import clip_path as external_clip_path, valid_clip_id
+from services.video_sources import resolve_source
 
 clips_bp = Blueprint("clips", __name__)
 
@@ -58,8 +59,10 @@ def generate():
     if not events and not external_ids:
         return jsonify({"error": "Select at least one event or external clip"}), 400
 
-    video_path = os.path.join(current_app.config["UPLOAD_FOLDER"], filename)
-    if not os.path.isfile(video_path):
+    # Local path when the upload exists on disk, else the video's hosting URL
+    # (ffmpeg cuts clips from HTTP sources directly via range requests).
+    video_path = resolve_source(current_app.config["UPLOAD_FOLDER"], filename)
+    if video_path is None:
         return jsonify({"error": f"Video file not found on server: {filename}"}), 404
 
     segments = events_to_segments(
