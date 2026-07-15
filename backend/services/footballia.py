@@ -248,15 +248,24 @@ def _decode_file(encoded: str) -> str | None:
 def extract_video_urls(match_url: str) -> list[str]:
     """Return the ordered MP4 URLs for a match (one per half/part)."""
     html = _fetch(match_url)
+    encoded: list[str] = []
     m = re.search(r"playlist\s*=\s*(\[.*?\]);", html, re.S)
-    if not m:
+    if m:
+        encoded = re.findall(r'"file"\s*:\s*"([^"]+)"', m.group(1))
+    else:
+        # Single-video pages have no playlist array; the video is passed
+        # straight to the player as `video = new Video("<base64>")`.
+        single = re.search(r'new\s+Video\(\s*"([^"]+)"\s*\)', html, re.S)
+        if single:
+            encoded = [single.group(1)]
+    if not encoded:
         if "Sign up" in html or "sign_up" in html:
             raise RuntimeError(
                 "Footballia looks logged out — re-export footballia.net_cookies.txt."
             )
         raise RuntimeError("No video found on this match page.")
     urls = []
-    for enc in re.findall(r'"file"\s*:\s*"([^"]+)"', m.group(1)):
+    for enc in encoded:
         u = _decode_file(enc)
         if u and u.startswith("http"):
             urls.append(u)
@@ -305,8 +314,19 @@ def _download_to(url: str, dest: str, job_id: str, base_done: int, total: int) -
     return done
 
 
-def _concat_parts(parts: list[str], out_path: str) -> None:
-    """Join match parts into one MP4 (stream copy; falls back to re-encode)."""
+def _probe_duration(path: str) -> float:
+    """Media duration in seconds via ffprobe (0.0 if it can't be read)."""
+    try:
+        res = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", path],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return float(res.stdout.decode().strip())
+    except (ValueError, OSError):
+        return 0.0
+
+
+def _write_concat_list(parts: list[str]) -> str:
     import tempfile
     with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as fl:
         for p in parts:
@@ -314,13 +334,42 @@ def _concat_parts(parts: list[str], out_path: str) -> None:
             # against the list file's directory (the temp dir), not our CWD.
             abs_p = os.path.abspath(p).replace(chr(92), "/")
             fl.write(f"file '{abs_p}'\n")
-        list_path = fl.name
+        return fl.name
+
+
+def _concat_parts(parts: list[str], out_path: str) -> None:
+    """Join match parts into one MP4.
+
+    Footballia halves are often separate encodes with different MP4 track
+    timescales; concat-copying those directly corrupts the timestamps (a 2 h
+    match reports as 7 h). So each part is first remuxed — stream copy, no
+    re-encode — to a common timescale before concatenating. If the joined
+    file's duration still doesn't match the sum of the parts (or the copy
+    fails outright, e.g. mismatched codecs), fall back to a full re-encode.
+    """
+    expected = sum(_probe_duration(p) for p in parts)
+
+    norm_parts: list[str] = []
+    for p in parts:
+        norm = f"{p}.norm.mp4"
+        res = subprocess.run(
+            ["ffmpeg", "-y", "-i", p, "-c", "copy",
+             "-video_track_timescale", "90000", norm],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        norm_parts.append(norm if res.returncode == 0 else p)
+
+    list_path = _write_concat_list(norm_parts)
     try:
         copy_cmd = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path,
                     "-c", "copy", "-movflags", "+faststart", out_path]
         res = subprocess.run(copy_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if res.returncode != 0:
-            # Parts differ in codec/params — re-encode to a uniform MP4.
+        # Tolerate small drift; anything beyond 5% means broken timestamps.
+        duration_ok = (
+            res.returncode == 0
+            and (not expected
+                 or abs(_probe_duration(out_path) - expected) <= max(30.0, expected * 0.05))
+        )
+        if not duration_ok:
             enc_cmd = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_path,
                        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
                        "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k",
@@ -330,6 +379,9 @@ def _concat_parts(parts: list[str], out_path: str) -> None:
                 raise RuntimeError(res2.stderr.decode(errors="replace")[-500:])
     finally:
         os.unlink(list_path)
+        for n in norm_parts:
+            if n.endswith(".norm.mp4") and os.path.isfile(n):
+                os.remove(n)
 
 
 def _worker(job_id: str, match_url: str, title: str, upload_dir: str) -> None:

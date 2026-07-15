@@ -39,7 +39,7 @@ export default function App() {
   // directly, so the clock-map path is automatically used when available.
   const toVideoTime = useCallback((matchSeconds, period = 1) => {
     if (clockMap && clockMap.length > 0) {
-      return interpolateVideoTime(matchSeconds, clockMap);
+      return interpolateVideoTime(matchSeconds, clockMap, period);
     }
     // Use per-half offset — fall back to the other half if only one is set
     const offset = halfOffsets[period] ?? halfOffsets[period === 1 ? 2 : 1];

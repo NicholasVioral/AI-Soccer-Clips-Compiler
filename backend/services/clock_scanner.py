@@ -377,34 +377,104 @@ def debug_frames(video_path: str, timestamps: list) -> list[dict]:
     return results
 
 
+# A splice in the recording (halftime cut out, missing footage) shows up as
+# adjacent clock readings whose video gap and match gap disagree by more than
+# this many seconds. Within one continuous broadcast chunk the two always move
+# 1:1 (the match clock never stops while the camera rolls).
+_SPLICE_TOLERANCE = 45.0
+
+# Don't map match times further than this beyond a chunk's scanned clock range
+# — extrapolating a long way past the last reading risks crossing an unseen
+# splice.
+_MAX_EXTRAPOLATION = 600.0
+
+# Readings inside one continuous chunk should share a constant video−match
+# offset; spread beyond this means hidden cuts between readings, in which case
+# per-pair interpolation is safer than a single offset.
+_MAX_OFFSET_SPREAD = 6.0
+
+
+def _split_segments(readings: list[dict]) -> list[list[dict]]:
+    """Split video-ordered clock readings into continuous 1:1 chunks."""
+    segments = [[readings[0]]]
+    for prev, cur in zip(readings, readings[1:]):
+        d_video = cur["video_seconds"] - prev["video_seconds"]
+        d_match = cur["match_seconds"] - prev["match_seconds"]
+        if abs(d_video - d_match) > _SPLICE_TOLERANCE:
+            segments.append([])
+        segments[-1].append(cur)
+    return segments
+
+
 def interpolate_video_time(
     match_seconds: float,
     clock_map: list[dict],
+    period: int | None = None,
 ) -> float | None:
     """
-    Return the video position (seconds) for *match_seconds* by linearly
-    interpolating between the two nearest clock-map entries.
+    Return the video position (seconds) for *match_seconds*.
 
-    Returns None if *match_seconds* is outside the scanned range or the map
-    is empty.
+    The readings are first split into continuous chunks at splice points
+    (halftime jumps, cut footage). Match times around such a jump are ambiguous
+    — first-half stoppage and the start of the second half share the same
+    clock values — so *period* picks the chunk when the chunks line up with
+    halves. Within a continuous chunk the broadcast clock runs 1:1 with the
+    video, so a single median offset maps exactly (and cancels per-reading OCR
+    jitter) and extends to match times before the first or after the last
+    reading, e.g. events earlier than the first successful clock read.
+
+    Returns None if the map is empty or the match time is out of reach of
+    every chunk.
     """
     if not clock_map:
         return None
 
-    s = sorted(clock_map, key=lambda x: x["match_seconds"])
+    import statistics
 
-    if match_seconds < s[0]["match_seconds"]:
-        return None
-    if match_seconds > s[-1]["match_seconds"]:
+    s = sorted(clock_map, key=lambda x: x["video_seconds"])
+    segments = _split_segments(s)
+
+    def in_reach(seg: list[dict]) -> bool:
+        lo, hi = seg[0]["match_seconds"], seg[-1]["match_seconds"]
+        return lo - _MAX_EXTRAPOLATION <= match_seconds <= hi + _MAX_EXTRAPOLATION
+
+    candidates = [seg for seg in segments if in_reach(seg)]
+    if not candidates:
         return None
 
-    for i in range(len(s) - 1):
-        a, b = s[i], s[i + 1]
+    # Prefer the period-th chunk (splices normally sit at half boundaries);
+    # otherwise take the chunk whose scanned range is closest.
+    seg = None
+    if period is not None and 1 <= period <= len(segments):
+        by_period = segments[period - 1]
+        if any(by_period is c for c in candidates):
+            seg = by_period
+    if seg is None:
+        def dist(sg: list[dict]) -> float:
+            lo, hi = sg[0]["match_seconds"], sg[-1]["match_seconds"]
+            if match_seconds < lo:
+                return lo - match_seconds
+            if match_seconds > hi:
+                return match_seconds - hi
+            return 0.0
+        seg = min(candidates, key=dist)
+
+    offsets = [e["video_seconds"] - e["match_seconds"] for e in seg]
+    if max(offsets) - min(offsets) <= _MAX_OFFSET_SPREAD:
+        return match_seconds + statistics.median(offsets)
+
+    # Jittery chunk (possible hidden cuts): interpolate between the two
+    # surrounding readings, extending 1:1 beyond the ends.
+    lo, hi = seg[0], seg[-1]
+    if match_seconds <= lo["match_seconds"]:
+        return lo["video_seconds"] - (lo["match_seconds"] - match_seconds)
+    if match_seconds >= hi["match_seconds"]:
+        return hi["video_seconds"] + (match_seconds - hi["match_seconds"])
+    for a, b in zip(seg, seg[1:]):
         if a["match_seconds"] <= match_seconds <= b["match_seconds"]:
             span = b["match_seconds"] - a["match_seconds"]
             if span == 0:
                 return float(a["video_seconds"])
             frac = (match_seconds - a["match_seconds"]) / span
             return a["video_seconds"] + frac * (b["video_seconds"] - a["video_seconds"])
-
-    return float(s[-1]["video_seconds"])
+    return float(hi["video_seconds"])
