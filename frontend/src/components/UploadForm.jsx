@@ -65,7 +65,7 @@ export default function UploadForm({ onVideoUploaded }) {
   );
 
   return (
-    <div>
+    <div className={styles.wrap}>
       <label
         className={`${styles.dropzone} ${dragging ? styles.over : ""} ${uploading ? styles.disabled : ""}`}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -79,7 +79,14 @@ export default function UploadForm({ onVideoUploaded }) {
           onChange={onInputChange}
           disabled={uploading}
         />
-        <span className={styles.icon}>&#127909;</span>
+        <span className={styles.icon} aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none"
+               stroke="currentColor" strokeWidth="1.5"
+               strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 16V4M12 4L7.5 8.5M12 4l4.5 4.5" />
+            <path d="M3.5 15v3a2 2 0 002 2h13a2 2 0 002-2v-3" />
+          </svg>
+        </span>
         <span className={styles.label}>
           {uploading
             ? `Uploading... ${progress}%`

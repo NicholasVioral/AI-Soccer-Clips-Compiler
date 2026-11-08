@@ -16,9 +16,12 @@ app = Flask(__name__)
 _frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 CORS(app, resources={r"/api/*": {"origins": _frontend_url}})
 
-app.config["UPLOAD_FOLDER"] = "uploads"
-app.config["CLIPS_FOLDER"] = "clips"
-app.config["EXTERNAL_FOLDER"] = "external"
+# Anchor storage folders to the backend directory so path resolution doesn't
+# depend on the process working directory (Flask's send_file resolves relative
+# paths against app.root_path, while os/ffmpeg use the CWD).
+app.config["UPLOAD_FOLDER"] = os.path.join(app.root_path, "uploads")
+app.config["CLIPS_FOLDER"] = os.path.join(app.root_path, "clips")
+app.config["EXTERNAL_FOLDER"] = os.path.join(app.root_path, "external")
 app.config["MAX_CONTENT_LENGTH"] = 2 * 1024 * 1024 * 1024  # 2 GB
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)

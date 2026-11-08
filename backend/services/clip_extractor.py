@@ -37,6 +37,12 @@ CLIP_TAIL = 0.5
 # floor is what makes clips overrun the action.
 MIN_CLIP_AFTER = 2.0
 
+# Goals get a longer floor: the next StatsBomb event (keeper picking the ball
+# out, kickoff) lands within a second or two, which would cut the clip before
+# the net even ripples on a replayed angle. Show the finish and a beat of
+# celebration.
+GOAL_MIN_AFTER = 8.0
+
 # Events skipped when looking for "the next event" that ends a clip. "Pressure"
 # is a constant off-ball defensive annotation, not a new on-screen action — if
 # it ended clips they'd cut ~half a second in whenever a defender closes down.
@@ -284,15 +290,9 @@ def _to_video_time(
     from services.clock_scanner import interpolate_video_time
 
     if clock_map:
-        vt = interpolate_video_time(match_s, clock_map)
-        if vt is not None:
-            return vt
-        s = sorted(clock_map, key=lambda x: x["match_seconds"])
-        last = s[-1]
-        delta_match = match_s - last["match_seconds"]
-        if 0 < delta_match <= 600:
-            return last["video_seconds"] + delta_match
-        return None
+        # Splice-aware: picks the right continuous chunk for the period and
+        # extrapolates up to 10 min beyond the scanned range on its own.
+        return interpolate_video_time(match_s, clock_map, period)
 
     if half_offsets:
         offset = (half_offsets.get(period)
@@ -403,7 +403,12 @@ def events_to_segments(
         if possession_start_match_s is not None:
             start_vt = _to_video_time(possession_start_match_s, clock_map, half_offsets, period)
             # Small lead-in so the incoming ball is visible before the reception.
-            start = max(0.0, (start_vt if start_vt is not None else video_time) - START_LEAD_IN)
+            lead_start = (start_vt if start_vt is not None else video_time) - START_LEAD_IN
+            # The reception scan is meant to ADD run-up context, never to cut
+            # below the requested pre-roll: a one-touch shot's reception lands
+            # <1 s before the strike, which would open the clip ~2.5 s before
+            # the event — too late to show the assist or buildup.
+            start = max(0.0, min(lead_start, video_time - padding_before))
         else:
             start = max(0.0, video_time - padding_before)
 
@@ -428,8 +433,10 @@ def events_to_segments(
 
         # Minimum duration floor — just enough that the clip has substance when
         # the next event lands almost instantly (e.g. a shot the keeper catches
-        # within a second). Keep it small or clips overrun the action.
-        min_end = video_time + MIN_CLIP_AFTER
+        # within a second). Keep it small or clips overrun the action. Goals
+        # get a longer floor so the finish isn't cut off.
+        is_goal = ((e.get("shot") or {}).get("outcome")) == "Goal"
+        min_end = video_time + (GOAL_MIN_AFTER if is_goal else MIN_CLIP_AFTER)
 
         if next_event_match_s is not None:
             end_vt = _to_video_time(next_event_match_s, clock_map, half_offsets, period)

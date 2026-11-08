@@ -15,6 +15,7 @@ import logging
 import re
 import threading
 import time
+import unicodedata
 import warnings
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -97,10 +98,32 @@ def _get_scorer():
     return _scorer
 
 
+# Letters NFKD can't decompose to ASCII (ø has no combining form, ß etc.).
+_CHAR_MAP = str.maketrans({
+    "ø": "o", "Ø": "O", "ß": "ss", "æ": "ae", "Æ": "Ae",
+    "œ": "oe", "Œ": "Oe", "ð": "d", "Ð": "D", "þ": "th", "Þ": "Th",
+    "ł": "l", "Ł": "L", "đ": "d", "Đ": "D",
+})
+
+# Clubs footballia and StatsBomb name too differently for fuzzy matching,
+# keyed and valued in normalized form.
+_ALIASES = {
+    "internazionale": "inter milan",
+}
+
+
+def _ascii(name: str) -> str:
+    """Transliterate accents ('München' → 'Munchen') so names compare against
+    StatsBomb's anglicized spellings instead of being mangled to spaces."""
+    decomposed = unicodedata.normalize("NFKD", name.translate(_CHAR_MAP))
+    return decomposed.encode("ascii", "ignore").decode("ascii")
+
+
 def _norm(name: str) -> str:
-    n = re.sub(r"[^a-z0-9 ]", " ", name.lower())
+    n = re.sub(r"[^a-z0-9 ]", " ", _ascii(name).lower())
     n = " ".join(t for t in n.split() if t not in _DROP_TOKENS)
-    return n.strip()
+    n = n.strip()
+    return _ALIASES.get(n, n)
 
 
 def _team_match(a: str, b: str) -> bool:

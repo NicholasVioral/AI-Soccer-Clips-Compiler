@@ -1,20 +1,38 @@
+/* Column so the dropzone can stretch when the card is given a height
+   (hero layout); inert everywhere else. */
+.wrap {
+  display: flex;
+  flex-direction: column;
+}
+
 .dropzone {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  border: 2px dashed rgba(124, 92, 252, 0.35);
+  gap: 0.55rem;
+  border: 1.5px dashed rgba(124, 92, 252, 0.32);
   border-radius: 12px;
-  padding: 2.5rem 1rem;
+  padding: 2.1rem 1rem;
   cursor: pointer;
+  background: radial-gradient(20rem 10rem at 50% 0%, rgba(124, 92, 252, 0.06), transparent 70%);
   transition: border-color 0.2s, background 0.2s;
 }
 
 .dropzone:hover,
 .over {
   border-color: #7c5cfc;
-  background: rgba(124, 92, 252, 0.05);
+  background:
+    radial-gradient(20rem 10rem at 50% 0%, rgba(124, 92, 252, 0.13), transparent 70%),
+    rgba(124, 92, 252, 0.04);
+}
+
+.dropzone:hover .icon,
+.over .icon {
+  color: #c9b8ff;
+  border-color: rgba(124, 92, 252, 0.5);
+  transform: translateY(-1px);
 }
 
 .disabled {
@@ -27,17 +45,30 @@
 }
 
 .icon {
-  font-size: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 0.15rem;
+  border-radius: 11px;
+  color: #a996ff;
+  background: rgba(124, 92, 252, 0.1);
+  border: 1px solid rgba(124, 92, 252, 0.24);
+  transition: color 0.2s, border-color 0.2s, transform 0.2s;
 }
 
 .label {
-  font-size: 1rem;
-  color: #8b8da8;
+  font-size: 0.92rem;
+  font-weight: 550;
+  color: #d9dae8;
+  letter-spacing: -0.01em;
 }
 
 .hint {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: #4e4f6b;
+  letter-spacing: 0.01em;
 }
 
 .progressBar {
