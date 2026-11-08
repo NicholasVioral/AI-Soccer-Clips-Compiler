@@ -1,0 +1,332 @@
+/* Decorative workspace mock shown beside the upload card on the landing view. */
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  background: linear-gradient(180deg, #15162280, #10111c);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  padding: 0.85rem;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 24px 60px -32px rgba(0, 0, 0, 0.9);
+  user-select: none;
+}
+
+/* ── Match frame ────────────────────────────────────────────────────────── */
+.frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 11px;
+  overflow: hidden;
+  background: #0d0f1c;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pitch {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Vignette so the overlay chrome stays legible over the pitch */
+.frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(5, 6, 12, 0.5) 0%, transparent 17%),
+    linear-gradient(0deg, rgba(5, 6, 12, 0.6) 0%, transparent 18%);
+  pointer-events: none;
+}
+
+.frameTop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem;
+}
+
+.score {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(10, 11, 20, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 7px;
+  padding: 0.28rem 0.55rem;
+  backdrop-filter: blur(6px);
+}
+
+.team {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  color: #9799b4;
+}
+
+.goals {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #f0f0f8;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.dash {
+  font-size: 0.7rem;
+  color: #4e4f6b;
+}
+
+.ocrBadge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: #7fe0a8;
+  background: rgba(38, 200, 122, 0.1);
+  border: 1px solid rgba(38, 200, 122, 0.26);
+  border-radius: 6px;
+  padding: 0.25rem 0.45rem;
+}
+
+.pulse {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #2ecc71;
+  box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.55);
+  animation: hpPulse 2.4s ease-out infinite;
+}
+
+@keyframes hpPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0.5); }
+  70%  { box-shadow: 0 0 0 6px rgba(46, 204, 113, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(46, 204, 113, 0); }
+}
+
+/* Broadcast clock — the thing the OCR scanner reads */
+.clock {
+  position: absolute;
+  z-index: 2;
+  left: 0.7rem;
+  top: 2.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  background: rgba(10, 11, 20, 0.72);
+  border: 1px solid rgba(124, 92, 252, 0.35);
+  border-radius: 7px;
+  padding: 0.32rem 0.55rem;
+  backdrop-filter: blur(6px);
+}
+
+.clockTime {
+  font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, monospace;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: #f0f0f8;
+  font-variant-numeric: tabular-nums;
+}
+
+.clockHalf {
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #7c5cfc;
+}
+
+.frameBottom {
+  position: absolute;
+  z-index: 2;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.6rem 0.7rem;
+}
+
+.playBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  color: #0b0c14;
+}
+
+.scrub {
+  position: relative;
+  flex: 1 1 auto;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.scrubFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #7c5cfc, #b49bff);
+}
+
+.scrubHandle {
+  position: absolute;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fff;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 3px rgba(124, 92, 252, 0.28);
+}
+
+.runtime {
+  flex: 0 0 auto;
+  font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, monospace;
+  font-size: 0.58rem;
+  color: #b6b7c9;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Timeline panel ─────────────────────────────────────────────────────── */
+.timelinePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  background: #0f101d;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 11px;
+  padding: 0.65rem 0.75rem 0.7rem;
+}
+
+.panelHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.panelTitle {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  color: #7c5cfc;
+}
+
+.panelMeta {
+  font-size: 0.6rem;
+  color: #4e4f6b;
+}
+
+.track {
+  position: relative;
+  height: 30px;
+  background: #0b0c17;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 5px;
+}
+
+.marker {
+  position: absolute;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.55;
+}
+
+.markerBig {
+  width: 9px;
+  height: 9px;
+  opacity: 1;
+  box-shadow: 0 0 0 3px rgba(243, 156, 18, 0.16);
+}
+
+.divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.playhead {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  border-radius: 2px;
+  background: #fff;
+  transform: translateX(-50%);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.45);
+}
+
+.ticks {
+  position: relative;
+  height: 11px;
+  font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, monospace;
+  font-size: 0.55rem;
+  color: #4e4f6b;
+}
+
+.ticks span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+}
+
+.ticks span:first-child {
+  transform: none;
+}
+
+.ticks span:last-child {
+  transform: translateX(-100%);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.8rem;
+  padding-top: 0.15rem;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.6rem;
+  color: #8b8da8;
+}
+
+.legendItem i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+}

@@ -1,27 +1,62 @@
 .app {
+  position: relative;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  isolation: isolate;
+}
+
+/* Ambient wash behind the page — keeps the dark canvas from reading as flat */
+.app::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(58rem 30rem at 18% -8%, rgba(124, 92, 252, 0.16), transparent 62%),
+    radial-gradient(46rem 26rem at 92% 4%, rgba(46, 204, 113, 0.07), transparent 60%);
 }
 
 .header {
-  background: #12131e;
-  padding: 1rem 2rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(18, 19, 30, 0.86);
+  backdrop-filter: blur(10px);
+  padding: 0.85rem 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   display: flex;
   align-items: center;
   gap: 1rem;
 }
 
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 27px;
+  height: 27px;
+  border-radius: 8px;
+  color: #fff;
+  background: linear-gradient(140deg, #7c5cfc, #5b3fd6);
+  box-shadow: 0 4px 14px -4px rgba(124, 92, 252, 0.75);
+}
+
 .header h1 {
-  font-size: 1.2rem;
-  font-weight: 700;
+  font-size: 0.95rem;
+  font-weight: 650;
   color: #f0f0f8;
-  letter-spacing: -0.2px;
+  letter-spacing: -0.01em;
 }
 
 .subtitle {
-  font-size: 0.8rem;
+  font-family: ui-monospace, "SFMono-Regular", "Cascadia Mono", Menlo, monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
   color: #4e4f6b;
   margin-left: auto;
 }
@@ -32,6 +67,154 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+}
+
+/* ── Landing / hero ─────────────────────────────────────────────────────── */
+.landing {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+  padding: 2.4rem 0 1rem;
+}
+
+/* Once a video is loaded the hero collapses back to the plain upload card */
+.landingCompact {
+  max-width: none;
+  padding: 0;
+  gap: 0;
+}
+
+.heroCopy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.85rem;
+  max-width: 46rem;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.65rem;
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #a996ff;
+  background: rgba(124, 92, 252, 0.09);
+  border: 1px solid rgba(124, 92, 252, 0.24);
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+}
+
+.eyebrowDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #7c5cfc;
+  box-shadow: 0 0 8px rgba(124, 92, 252, 0.9);
+}
+
+.heroTitle {
+  font-size: clamp(2rem, 3.5vw, 3.15rem);
+  line-height: 1.06;
+  font-weight: 700;
+  letter-spacing: -0.033em;
+  color: #f4f4fb;
+  text-wrap: balance;
+}
+
+.heroAccent {
+  background: linear-gradient(100deg, #9d7dfe 10%, #6ee7b7 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.heroTagline {
+  font-size: clamp(0.92rem, 1.05vw, 1.05rem);
+  line-height: 1.62;
+  color: #8b8da8;
+  max-width: 40rem;
+}
+
+.heroGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  gap: 1.25rem;
+  align-items: stretch;
+}
+
+/* On the landing view the upload card matches the mock's height, so the
+   dropzone grows into the spare room instead of leaving a ragged column. */
+.landing:not(.landingCompact) .card {
+  display: flex;
+  flex-direction: column;
+}
+
+.landing:not(.landingCompact) .card > div:first-of-type {
+  flex: 1 1 auto;
+}
+
+.landingCompact .heroGrid {
+  display: block;
+}
+
+/* ── Feature highlights ─────────────────────────────────────────────────── */
+.features {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+}
+
+.featureCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  background: linear-gradient(180deg, rgba(19, 20, 31, 0.9), rgba(15, 16, 29, 0.9));
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+  padding: 0.85rem 0.95rem;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.featureCard:hover {
+  border-color: rgba(124, 92, 252, 0.4);
+  transform: translateY(-1px);
+}
+
+.featureIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  color: #a996ff;
+  background: rgba(124, 92, 252, 0.11);
+  border: 1px solid rgba(124, 92, 252, 0.2);
+}
+
+.featureCard h3 {
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: #f0f0f8;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.22rem;
+}
+
+.featureCard p {
+  font-size: 0.74rem;
+  line-height: 1.5;
+  color: #7b7d97;
 }
 
 /* ── Shared card ────────────────────────────────────────────────────────── */
@@ -133,11 +316,72 @@
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
+
+/* Roomier hero on 1080p+ captures — the column width stays put so the mock
+   doesn't outgrow the upload card beside it */
+@media (min-width: 1600px) {
+  .landing:not(.landingCompact) {
+    padding-top: 3.2rem;
+    gap: 1.9rem;
+  }
+  .heroGrid,
+  .features {
+    gap: 1.4rem;
+  }
+}
+
+/* Short viewports (a 1280×800 window is ~700px tall) — keep the hero,
+   the mock and the feature row all above the fold */
+@media (max-height: 900px) {
+  .main {
+    padding: 1.1rem 1.5rem;
+  }
+  .landing:not(.landingCompact) {
+    max-width: 1060px;
+    padding-top: 1rem;
+    gap: 1rem;
+  }
+  .heroCopy {
+    gap: 0.55rem;
+  }
+  .heroTitle {
+    font-size: clamp(1.6rem, 2.45vw, 2.1rem);
+  }
+  .heroTagline {
+    font-size: 0.85rem;
+    line-height: 1.55;
+    max-width: 34rem;
+  }
+  .featureCard {
+    padding: 0.65rem 0.75rem;
+    gap: 0.55rem;
+  }
+  .featureCard p {
+    font-size: 0.71rem;
+    line-height: 1.45;
+  }
+}
+
+@media (max-width: 1080px) {
+  .heroGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .features {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 900px) {
   .workspace {
     grid-template-columns: 1fr;
   }
   .eventSidebar {
     max-height: 380px;
+  }
+  .header {
+    padding: 0.85rem 1.1rem;
+  }
+  .subtitle {
+    display: none;
   }
 }

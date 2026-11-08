@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import styles from "./EventTimeline.module.css";
 
-const TYPE_COLORS = {
+export const TYPE_COLORS = {
   Shot: "#e74c3c",
   Goal: "#f39c12",
   Pass: "#3498db",

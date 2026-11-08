@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import UploadForm from "./components/UploadForm";
+import HeroPreview from "./components/HeroPreview";
 import FootballiaSearch from "./components/FootballiaSearch";
 import MatchSelector from "./components/MatchSelector";
 import VideoPlayer from "./components/VideoPlayer";
@@ -17,6 +18,40 @@ const SCAN_IDLE    = "idle";
 const SCAN_RUNNING = "running";
 const SCAN_DONE    = "done";
 const SCAN_FAILED  = "failed";
+
+// Landing-page highlights — presentation only.
+const FEATURES = [
+  {
+    title: "StatsBomb event sync",
+    body: "Every pass, shot and card from StatsBomb open data, mapped onto your video's own clock.",
+    icon: (
+      <>
+        <path d="M2 12h4l2.5-7 3 14 2.5-7h6" />
+      </>
+    ),
+  },
+  {
+    title: "OCR clock detection",
+    body: "Tesseract reads the broadcast clock frame by frame, so kickoff drift is found, not guessed.",
+    icon: (
+      <>
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M12 7.5V12l3 2" />
+      </>
+    ),
+  },
+  {
+    title: "FFmpeg clip export",
+    body: "Frame-accurate cuts re-encoded with libx264, then stitched into one shareable reel.",
+    icon: (
+      <>
+        <rect x="2.5" y="4.5" width="19" height="15" rx="2.5" />
+        <path d="M2.5 9h19M7.5 4.5v4.5M16.5 4.5v4.5" />
+        <path d="M10 12.5l4.5 2.5-4.5 2.5z" />
+      </>
+    ),
+  },
+];
 
 export default function App() {
   const [videoUrl, setVideoUrl]           = useState(null);
@@ -112,20 +147,72 @@ export default function App() {
   return (
     <div className={styles.app}>
       <header className={styles.header}>
-        <h1>Soccer Clip Compiler</h1>
-        <p className={styles.subtitle}>
-          Upload a match video, sync StatsBomb events, jump to any moment.
-        </p>
+        <div className={styles.brand}>
+          <span className={styles.mark} aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none"
+                 stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <rect x="2.5" y="4.5" width="19" height="15" rx="2" />
+              <path d="M12 4.5v15" />
+              <circle cx="12" cy="12" r="3.2" />
+            </svg>
+          </span>
+          <h1>Soccer Clip Compiler</h1>
+        </div>
+        <p className={styles.subtitle}>StatsBomb → clock sync → FFmpeg export</p>
       </header>
 
       <main className={styles.main}>
-        {/* ── Step 1: Upload ───────────────────────────────────────────── */}
-        <section className={styles.card}>
-          <h2>1. Upload Video</h2>
-          <UploadForm onVideoUploaded={handleVideoUploaded} />
-          <div className={styles.orDivider}><span>or download from Footballia</span></div>
-          <FootballiaSearch onVideoUploaded={handleVideoUploaded} />
-        </section>
+        <div className={`${styles.landing} ${videoUrl ? styles.landingCompact : ""}`}>
+          {!videoUrl && (
+            <div className={styles.heroCopy}>
+              <span className={styles.eyebrow}>
+                <span className={styles.eyebrowDot} />
+                StatsBomb open data
+              </span>
+              <h2 className={styles.heroTitle}>
+                Turn a full match into a{" "}
+                <span className={styles.heroAccent}>searchable event timeline</span>.
+              </h2>
+              <p className={styles.heroTagline}>
+                Drop in a match video and it lines the events up against the broadcast
+                clock — then every shot, goal and card is one click away, and any
+                moment cuts straight to a clip.
+              </p>
+            </div>
+          )}
+
+          <div className={styles.heroGrid}>
+            {/* ── Step 1: Upload ───────────────────────────────────────── */}
+            <section className={styles.card}>
+              <h2>1. Upload Video</h2>
+              <UploadForm onVideoUploaded={handleVideoUploaded} />
+              <div className={styles.orDivider}><span>or download from Footballia</span></div>
+              <FootballiaSearch onVideoUploaded={handleVideoUploaded} />
+            </section>
+
+            {!videoUrl && <HeroPreview />}
+          </div>
+
+          {!videoUrl && (
+            <ul className={styles.features}>
+              {FEATURES.map((f) => (
+                <li key={f.title} className={styles.featureCard}>
+                  <span className={styles.featureIcon} aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="17" height="17" fill="none"
+                         stroke="currentColor" strokeWidth="1.5"
+                         strokeLinecap="round" strokeLinejoin="round">
+                      {f.icon}
+                    </svg>
+                  </span>
+                  <div>
+                    <h3>{f.title}</h3>
+                    <p>{f.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         {videoUrl && (
           <div className={styles.workspace}>
